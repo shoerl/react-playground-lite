@@ -1,11 +1,22 @@
 import React, { useEffect, useRef } from 'react';
 import type { ComponentDef } from '../../../plugin/src/scanner';
 
+/**
+ * Props for the `Preview` component.
+ */
 interface PreviewProps {
+  /** The definition of the component to preview. */
   component?: ComponentDef;
+  /** The props to pass to the component. */
   props: Record<string, any>;
 }
 
+/**
+ * The HTML content for the preview iframe.
+ * It includes a root element for React to render into and a client script
+ * that handles communication with the main playground app.
+ * @internal
+ */
 const iframeContent = `
 <!DOCTYPE html>
 <html lang="en">
@@ -32,22 +43,36 @@ const iframeContent = `
 </html>
 `;
 
+/**
+ * Renders a component in an isolated iframe.
+ * Communication with the iframe is done via `postMessage`.
+ */
 export function Preview({ component, props }: PreviewProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const isReadyRef = useRef(false);
 
+  // Effect to handle the 'ready' message from the iframe.
   useEffect(() => {
     const handler = (event: MessageEvent) => {
-      if (event.source === iframeRef.current?.contentWindow && event.data.type === 'rplite-iframe-ready') {
+      if (
+        event.source === iframeRef.current?.contentWindow &&
+        event.data.type === 'rplite-iframe-ready'
+      ) {
         isReadyRef.current = true;
+        // Once the iframe is ready, send the initial render message.
         sendRenderMessage();
       }
     };
 
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, [component]);
+    // This effect should only run once when the component mounts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  /**
+   * Sends a message to the iframe to render the component with the current props.
+   */
   const sendRenderMessage = () => {
     if (iframeRef.current?.contentWindow && component && isReadyRef.current) {
       iframeRef.current.contentWindow.postMessage(
@@ -56,18 +81,22 @@ export function Preview({ component, props }: PreviewProps) {
           component,
           props,
         },
-        '*'
+        '*', // Allow any origin to receive the message.
       );
     }
   };
 
+  // Effect to unmount the old component when the selected component changes.
   useEffect(() => {
-     // When component changes, tell iframe to unmount the old one before we send the new one.
-     if (iframeRef.current?.contentWindow && isReadyRef.current) {
-        iframeRef.current.contentWindow.postMessage({ type: 'rplite-unmount' }, '*');
-     }
-  }, [component?.path])
+    if (iframeRef.current?.contentWindow && isReadyRef.current) {
+      iframeRef.current.contentWindow.postMessage(
+        { type: 'rplite-unmount' },
+        '*',
+      );
+    }
+  }, [component?.path]);
 
+  // Effect to send a render message whenever the props or component change.
   useEffect(() => {
     sendRenderMessage();
   }, [props, component?.path]);
