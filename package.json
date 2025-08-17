@@ -2,8 +2,12 @@
   "name": "react-playground-lite",
   "private": true,
   "version": "0.1.0",
-  "workspaces": [
-    "packages/*",
-    "example"
-  ]
+  "workspaces": ["packages/*", "example"],
+  "scripts": {
+    "dev": "yarn workspace example dev",
+    "preview": "yarn workspace example preview",
+    "build": "yarn workspace @rplite/plugin build && yarn workspace @rplite/runtime build",
+    "typecheck": "tsc -b packages/* example",
+    "lint": "echo 'lint stub'"
+  }
 }

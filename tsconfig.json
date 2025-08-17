@@ -1,0 +1,8 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/plugin" },
+    { "path": "./packages/runtime" },
+    { "path": "./example" }
+  ]
+}
