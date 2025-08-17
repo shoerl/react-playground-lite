@@ -2,11 +2,7 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "noEmit": true,
-    "paths": {
-      "@rplite/plugin": ["../packages/plugin/src"],
-      "@rplite/runtime": ["../packages/runtime/src"]
-    }
+    "noEmit": true
   },
   "include": ["src", "vite.config.ts"],
   "references": [
