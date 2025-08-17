@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+.yarn/*
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+
+# lockfiles (monorepo uses yarn.lock at root)
+example/package-lock.json
+example/pnpm-lock.yaml
+example/yarn.lock
+
+# build output
+dist/
+build/
+*.tsbuildinfo
+
+# vite
+vite.cache/
+.cache/
+
+# editor / os
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
