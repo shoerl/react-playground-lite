@@ -1,6 +1,6 @@
 import type { Plugin, ViteDevServer } from 'vite';
 import path from 'path';
-import { createScanner, Manifest, Scanner } from './scanner';
+import { createScanner, Manifest, Scanner } from './scanner.js';
 
 const VIRTUAL_MODULE_ID = 'virtual:rplite-manifest';
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID;

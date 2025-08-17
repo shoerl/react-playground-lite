@@ -12,6 +12,7 @@ export type ComponentDef = {
   name: string;
   path: string;
   props: Record<string, PropDef>;
+  isDefaultExport: boolean;
 };
 
 export type Manifest = {
@@ -75,7 +76,7 @@ export function createScanner(options: ScannerOptions): Scanner {
     return null;
   };
 
-  const getPropsOfComponent = (node: ts.FunctionDeclaration | ts.ArrowFunction, checker: ts.TypeChecker): Record<string, PropDef> | null => {
+  const getPropsOfComponent = (node: ts.FunctionDeclaration | ts.ArrowFunction | ts.FunctionExpression, checker: ts.TypeChecker): Record<string, PropDef> | null => {
     if (node.parameters.length !== 1) {
       return null;
     }
@@ -98,67 +99,89 @@ export function createScanner(options: ScannerOptions): Scanner {
     return Object.keys(props).length > 0 ? props : null;
   };
 
-  const getComponentDef = (filePath: string, program: ts.Program): ComponentDef | null => {
+  const getComponentDefs = (filePath: string, program: ts.Program): ComponentDef[] => {
     const sourceFile = program.getSourceFile(filePath);
-    if (!sourceFile) return null;
+    if (!sourceFile) return [];
     const checker = program.getTypeChecker();
+    const componentDefs: ComponentDef[] = [];
 
-    let functionDecl: ts.FunctionDeclaration | ts.ArrowFunction | undefined;
-    let componentName: string | undefined;
+    const exports = checker.getExportsOfModule(checker.getSymbolAtLocation(sourceFile)!);
 
-    const visit = (node: ts.Node) => {
-      let exportNode: ts.Node | undefined;
-      if (ts.isExportAssignment(node) && node.expression) {
-        exportNode = node.expression;
-      } else if (
-        (ts.isFunctionDeclaration(node) || ts.isVariableStatement(node)) &&
-        node.modifiers?.some(m => m.kind === ts.SyntaxKind.ExportKeyword) &&
-        node.modifiers?.some(m => m.kind === ts.SyntaxKind.DefaultKeyword)
-      ) {
-        exportNode = node;
-      }
+    exports.forEach(exportSymbol => {
+      const decl = exportSymbol.getDeclarations()?.[0];
+      if (!decl) return;
 
-      if (!exportNode) {
-        ts.forEachChild(node, visit);
+      let componentName: string;
+      let functionDecl: ts.FunctionDeclaration | ts.ArrowFunction | ts.FunctionExpression | undefined;
+      const isDefaultExport = exportSymbol.name === 'default';
+
+      if (ts.isFunctionDeclaration(decl) || ts.isFunctionExpression(decl) || ts.isArrowFunction(decl)) {
+        functionDecl = decl;
+        componentName = isDefaultExport
+          ? path.basename(filePath, path.extname(filePath))
+          : exportSymbol.name;
+      } else if (ts.isVariableDeclaration(decl) && decl.initializer) {
+        if (ts.isArrowFunction(decl.initializer) || ts.isFunctionExpression(decl.initializer)) {
+          functionDecl = decl.initializer;
+          componentName = isDefaultExport
+            ? path.basename(filePath, path.extname(filePath))
+            : (decl.name as ts.Identifier).text;
+        }
+      } else if (ts.isExportAssignment(decl) && ts.isIdentifier(decl.expression)) {
+        const symbol = checker.getSymbolAtLocation(decl.expression);
+        const originalDecl = symbol?.getDeclarations()?.[0];
+        if (originalDecl) {
+          if (ts.isFunctionDeclaration(originalDecl) || ts.isFunctionExpression(originalDecl) || ts.isArrowFunction(originalDecl)) {
+            functionDecl = originalDecl;
+            componentName = path.basename(filePath, path.extname(filePath));
+          } else if (ts.isVariableDeclaration(originalDecl) && originalDecl.initializer && (ts.isArrowFunction(originalDecl.initializer) || ts.isFunctionExpression(originalDecl.initializer))) {
+            functionDecl = originalDecl.initializer;
+            componentName = path.basename(filePath, path.extname(filePath));
+          }
+        }
+      } else if (ts.isExportDeclaration(decl) && decl.exportClause && ts.isNamedExports(decl.exportClause)) {
+        decl.exportClause.elements.forEach(specifier => {
+          const symbol = checker.getSymbolAtLocation(specifier.name);
+          const originalDecl = symbol?.getDeclarations()?.[0];
+          if (originalDecl) {
+            let funcDecl: ts.FunctionDeclaration | ts.ArrowFunction | ts.FunctionExpression | undefined;
+            if (ts.isFunctionDeclaration(originalDecl) || ts.isFunctionExpression(originalDecl)) {
+              funcDecl = originalDecl;
+            } else if (ts.isVariableDeclaration(originalDecl) && originalDecl.initializer && (ts.isArrowFunction(originalDecl.initializer) || ts.isFunctionExpression(originalDecl.initializer))) {
+              funcDecl = originalDecl.initializer;
+            }
+
+            if (funcDecl) {
+              const props = getPropsOfComponent(funcDecl, checker);
+              if (props) {
+                componentDefs.push({
+                  name: specifier.name.text,
+                  path: path.relative(projectRoot, filePath).replace(/\\/g, '/'),
+                  props,
+                  isDefaultExport: false,
+                });
+              }
+            }
+          }
+        });
         return;
       }
 
-      if (ts.isIdentifier(exportNode)) {
-        let symbol = checker.getSymbolAtLocation(exportNode);
-        if (symbol) {
-          if (symbol.flags & ts.SymbolFlags.Alias) {
-            symbol = checker.getAliasedSymbol(symbol);
-          }
 
-          if (symbol.valueDeclaration && ts.isFunctionDeclaration(symbol.valueDeclaration)) {
-            functionDecl = symbol.valueDeclaration;
-            componentName = functionDecl.name?.getText(sourceFile);
-          }
-        }
-      } else if (ts.isFunctionDeclaration(exportNode)) {
-        functionDecl = exportNode;
-        componentName = exportNode.name?.getText(sourceFile);
-      } else if (ts.isVariableStatement(exportNode)) {
-        const varDecl = exportNode.declarationList.declarations[0];
-        if (varDecl && varDecl.initializer && ts.isArrowFunction(varDecl.initializer)) {
-          functionDecl = varDecl.initializer;
-          componentName = varDecl.name.getText(sourceFile);
+      if (functionDecl) {
+        const props = getPropsOfComponent(functionDecl, checker);
+        if (props) {
+          componentDefs.push({
+            name: componentName!,
+            path: path.relative(projectRoot, filePath).replace(/\\/g, '/'),
+            props,
+            isDefaultExport,
+          });
         }
       }
-    };
+    });
 
-    visit(sourceFile);
-
-    if (!functionDecl) return null;
-
-    const props = getPropsOfComponent(functionDecl, checker);
-    if (!props) return null;
-
-    return {
-      name: componentName || path.basename(filePath, path.extname(filePath)),
-      path: path.relative(projectRoot, filePath).replace(/\\/g, '/'),
-      props,
-    };
+    return componentDefs;
   };
 
   const scan = (): Manifest => {
@@ -174,9 +197,9 @@ export function createScanner(options: ScannerOptions): Scanner {
     const components: ComponentDef[] = [];
     for (const file of files) {
       try {
-        const def = getComponentDef(file, program);
-        if (def) {
-          components.push(def);
+        const defs = getComponentDefs(file, program);
+        if (defs.length > 0) {
+          components.push(...defs);
         }
       } catch (error) {
         console.error(`Error scanning file ${file}:`, error);

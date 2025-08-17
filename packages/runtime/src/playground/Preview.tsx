@@ -53,7 +53,7 @@ export function Preview({ component, props }: PreviewProps) {
       iframeRef.current.contentWindow.postMessage(
         {
           type: 'rplite-render',
-          componentPath: `/${component.path}`,
+          component,
           props,
         },
         '*'

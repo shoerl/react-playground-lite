@@ -45,11 +45,11 @@ const variantStyles: Record<NonNullable<ButtonProps['variant']>, React.CSSProper
 /**
  * A simple button component for demonstration purposes.
  */
-export default function Button({
+export const Button = ({
   label,
   variant = 'contained',
   disabled = false,
-}: ButtonProps) {
+}: ButtonProps) => {
   const style = {
     ...baseStyles,
     ...variantStyles[variant],
@@ -62,4 +62,17 @@ export default function Button({
       {label}
     </button>
   );
+};
+
+type IconButtonProps = {
+    icon: string;
+    onClick: () => void;
+}
+
+export const IconButton = ({ icon, onClick }: IconButtonProps) => {
+    return (
+        <button onClick={onClick} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+            <span className="material-icons">{icon}</span>
+        </button>
+    )
 }

@@ -51,22 +51,29 @@ const previewPanelStyles: React.CSSProperties = {
 };
 
 export function Playground({ manifest }: PlaygroundProps) {
-  const [selectedComponentPath, setSelectedComponentPath] = useState<string | null>(null);
+  const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
   const [propValues, setPropValues] = useState<Record<string, any>>({});
 
   const sortedComponents = useMemo(() => {
-    return [...manifest.components].sort((a, b) => a.name.localeCompare(b.name));
+    return [...manifest.components].sort((a, b) => {
+      const aName = a.isDefaultExport ? a.path : `${a.path} / ${a.name}`;
+      const bName = b.isDefaultExport ? b.path : `${b.path} / ${b.name}`;
+      return aName.localeCompare(bName);
+    });
   }, [manifest.components]);
 
   useEffect(() => {
-    if (!selectedComponentPath && sortedComponents.length > 0) {
-      setSelectedComponentPath(sortedComponents[0].path);
+    if (!selectedComponentId && sortedComponents.length > 0) {
+      const firstComponent = sortedComponents[0];
+      setSelectedComponentId(`${firstComponent.path}:${firstComponent.name}`);
     }
-  }, [sortedComponents, selectedComponentPath]);
+  }, [sortedComponents, selectedComponentId]);
 
   const selectedComponent = useMemo(() => {
-    return manifest.components.find(c => c.path === selectedComponentPath);
-  }, [selectedComponentPath, manifest.components]);
+    if (!selectedComponentId) return null;
+    const [path, name] = selectedComponentId.split(':');
+    return manifest.components.find(c => c.path === path && c.name === name) ?? null;
+  }, [selectedComponentId, manifest.components]);
 
   useEffect(() => {
     if (selectedComponent) {
@@ -93,19 +100,26 @@ export function Playground({ manifest }: PlaygroundProps) {
       <aside style={sidebarStyles}>
         <h2 style={{ fontSize: '18px', marginTop: 0 }}>Components</h2>
         <ul style={listStyles}>
-          {sortedComponents.map(c => (
-            <li
-              key={c.path}
-              onClick={() => setSelectedComponentPath(c.path)}
-              style={{
-                ...listItemStyles,
-                backgroundColor: selectedComponentPath === c.path ? '#e0eafc' : 'transparent',
-                fontWeight: selectedComponentPath === c.path ? 600 : 'normal',
-              }}
-            >
-              {c.name}
-            </li>
-          ))}
+          {sortedComponents.map(c => {
+            const id = `${c.path}:${c.name}`;
+            const displayName = c.isDefaultExport
+              ? c.path.split('/').pop()?.replace('.tsx', '')
+              : `${c.path.split('/').pop()?.replace('.tsx', '')} / ${c.name}`;
+
+            return (
+              <li
+                key={id}
+                onClick={() => setSelectedComponentId(id)}
+                style={{
+                  ...listItemStyles,
+                  backgroundColor: selectedComponentId === id ? '#e0eafc' : 'transparent',
+                  fontWeight: selectedComponentId === id ? 600 : 'normal',
+                }}
+              >
+                {displayName}
+              </li>
+            );
+          })}
         </ul>
       </aside>
 
