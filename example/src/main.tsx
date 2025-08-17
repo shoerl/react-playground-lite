@@ -1,10 +1,22 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.tsx'
+import React from 'react'
+import ReactDOM from 'react-dom/client'
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+const styles = {
+  display: 'grid',
+  placeContent: 'center',
+  height: '100vh',
+  fontFamily: 'sans-serif',
+  textAlign: 'center',
+} as React.CSSProperties;
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <div style={styles}>
+      <h1>React Playground Lite</h1>
+      <p>
+        The component playground is running at{' '}
+        <a href="/__rplite">/__rplite</a>.
+      </p>
+    </div>
+  </React.StrictMode>,
 )
