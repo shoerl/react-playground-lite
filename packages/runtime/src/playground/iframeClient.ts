@@ -5,11 +5,11 @@ let root = createRoot(document.getElementById('root')!);
 
 window.addEventListener('message', async (event) => {
   if (event.data.type === 'rplite-render') {
-    const { componentPath, props } = event.data;
+    const { component, props } = event.data;
     try {
-      // The vite dev server will resolve this absolute path
+      const componentPath = `/${component.path}`;
       const CompModule = await import(/* @vite-ignore */ componentPath);
-      const Component = CompModule.default;
+      const Component = component.isDefaultExport ? CompModule.default : CompModule[component.name];
 
       if (Component) {
         const element = React.createElement(Component, props);
