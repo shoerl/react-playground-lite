@@ -124,10 +124,16 @@ export function createScanner(options: ScannerOptions): Scanner {
       }
 
       if (ts.isIdentifier(exportNode)) {
-        const symbol = checker.getResolvedSignature(exportNode)?.getDeclaration()?.parent;
-        if(symbol && ts.isFunctionDeclaration(symbol)) {
-            functionDecl = symbol;
-            componentName = symbol.name?.getText(sourceFile);
+        let symbol = checker.getSymbolAtLocation(exportNode);
+        if (symbol) {
+          if (symbol.flags & ts.SymbolFlags.Alias) {
+            symbol = checker.getAliasedSymbol(symbol);
+          }
+
+          if (symbol.valueDeclaration && ts.isFunctionDeclaration(symbol.valueDeclaration)) {
+            functionDecl = symbol.valueDeclaration;
+            componentName = functionDecl.name?.getText(sourceFile);
+          }
         }
       } else if (ts.isFunctionDeclaration(exportNode)) {
         functionDecl = exportNode;
