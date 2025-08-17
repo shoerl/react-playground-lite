@@ -1,7 +1,16 @@
 {
-  "files": [],
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "paths": {
+      "@rplite/plugin": ["../packages/plugin/src"],
+      "@rplite/runtime": ["../packages/runtime/src"]
+    }
+  },
+  "include": ["src", "vite.config.ts"],
   "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
+    { "path": "../packages/plugin" },
+    { "path": "../packages/runtime" }
   ]
 }
