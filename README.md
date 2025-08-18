@@ -92,7 +92,7 @@ graph LR
     end
 
     subgraph Filesystem
-        F[React Components (.tsx)]
+        F[React Components]
     end
 
     C --> B
