@@ -1,5 +1,8 @@
 import type { Plugin, ViteDevServer } from 'vite';
 import path from 'path';
+import fs from 'fs';
+import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
 import { createScanner, Manifest, Scanner } from './scanner.js';
 
 /**
@@ -36,6 +39,13 @@ export default function rplitePlugin(options: RplitePluginOptions = {}): Plugin 
   const { srcDir = 'src' } = options;
   const projectRoot = process.cwd();
   const resolvedSrcDir = path.resolve(projectRoot, srcDir);
+  const pluginDir = path.dirname(fileURLToPath(import.meta.url));
+  const localRuntimeDevEntry = path.resolve(
+    pluginDir,
+    '../../runtime/src/devEntry.tsx',
+  );
+  const requireFromPlugin = createRequire(import.meta.url);
+  let cachedDevEntryPath: string | null = null;
 
   let server: ViteDevServer;
   let scanner: Scanner;
@@ -96,15 +106,30 @@ export default function rplitePlugin(options: RplitePluginOptions = {}): Plugin 
       server = _server;
 
       // Middleware to serve the playground HTML
-      server.middlewares.use('/__rplite', (_req, res) => {
-        // The runtime package is resolved from the project root.
+      server.middlewares.use('/__rplite', async (req, res, next) => {
+        // Resolve the runtime development entry point from the project root.
         // This is a bit brittle and assumes a monorepo structure.
-        const runtimePath = path.resolve(
-          projectRoot,
-          'packages/runtime/src/index.tsx',
-        );
-        res.setHeader('Content-Type', 'text/html');
-        res.end(`
+        if (!cachedDevEntryPath) {
+          try {
+            const runtimePackageJson = requireFromPlugin.resolve(
+              '@rplite/runtime/package.json',
+              { paths: [projectRoot] },
+            );
+            cachedDevEntryPath = path.resolve(
+              path.dirname(runtimePackageJson),
+              'src/devEntry.tsx',
+            );
+          } catch (error) {
+            if (fs.existsSync(localRuntimeDevEntry)) {
+              cachedDevEntryPath = localRuntimeDevEntry;
+            } else {
+              next(error as Error);
+              return;
+            }
+          }
+        }
+
+        const template = `
           <!DOCTYPE html>
           <html lang="en">
           <head>
@@ -115,22 +140,19 @@ export default function rplitePlugin(options: RplitePluginOptions = {}): Plugin 
           </head>
           <body>
               <div id="root"></div>
-              <script type="module">
-                  import React from 'react';
-                  import { createRoot } from 'react-dom/client';
-                  // The playground UI is loaded directly from the source file.
-                  // Vite's dev server handles the transformation.
-                  import { Playground } from '/@fs/${runtimePath}';
-                  // The manifest is imported from our virtual module.
-                  import manifest from '${VIRTUAL_MODULE_ID}';
-
-                  const container = document.getElementById('root');
-                  const root = createRoot(container);
-                  root.render(React.createElement(Playground, { manifest }));
-              </script>
+              <script type="module" src="/@fs/${cachedDevEntryPath}"></script>
           </body>
           </html>
-        `);
+        `;
+
+        try {
+          const requestUrl = req.originalUrl ?? req.url ?? '/__rplite';
+          const html = await server.transformIndexHtml(requestUrl, template);
+          res.setHeader('Content-Type', 'text/html');
+          res.end(html);
+        } catch (error) {
+          next(error as Error);
+        }
       });
 
       // Watch for changes in component files and invalidate the manifest module

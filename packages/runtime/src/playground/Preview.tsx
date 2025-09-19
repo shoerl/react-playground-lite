@@ -17,6 +17,8 @@ interface PreviewProps {
  * that handles communication with the main playground app.
  * @internal
  */
+const iframeClientUrl = new URL('./iframeClient.ts', import.meta.url).href;
+
 const iframeContent = `
 <!DOCTYPE html>
 <html lang="en">
@@ -24,6 +26,14 @@ const iframeContent = `
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Preview</title>
+    <script type="module">
+      import RefreshRuntime from '/@react-refresh';
+      RefreshRuntime.injectIntoGlobalHook(window);
+      window.$RefreshReg$ = () => {};
+      window.$RefreshSig$ = () => type => type;
+      window.__vite_plugin_react_preamble_installed__ = true;
+    </script>
+    <script type="module" src="/@vite/client"></script>
     <style>
       body { margin: 0; }
       #root {
@@ -38,7 +48,7 @@ const iframeContent = `
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/@fs/${process.cwd()}/packages/runtime/src/playground/iframeClient.ts"></script>
+    <script type="module" src="${iframeClientUrl}"></script>
   </body>
 </html>
 `;
