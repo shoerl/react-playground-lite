@@ -1,4 +1,4 @@
-import type { Plugin, ViteDevServer } from 'vite';
+import type { Logger, Plugin, ViteDevServer } from 'vite';
 import path from 'path';
 import fs from 'fs';
 import { createRequire } from 'module';
@@ -59,6 +59,10 @@ export default function rplitePlugin(options: RplitePluginOptions = {}): Plugin 
     new Set([...DEFAULT_IGNORE_PATTERNS, ...userIgnorePatterns]),
   );
   const shouldIgnoreWatcher = createWatcherIgnore(projectRoot, ignorePatterns);
+  const loggerRef: { current?: ScannerLogger } = {
+    current: options.logger,
+  };
+  const delegatedLogger = createDelegatedLogger(loggerRef);
   const pluginDir = path.dirname(fileURLToPath(import.meta.url));
   const localRuntimeDevEntry = path.resolve(
     pluginDir,
@@ -82,7 +86,7 @@ export default function rplitePlugin(options: RplitePluginOptions = {}): Plugin 
         srcDir: resolvedSrcDir,
         projectRoot,
         ignore: userIgnorePatterns,
-        logger: options.logger,
+        logger: delegatedLogger,
       });
     }
     // Invalidate manifest cache for every request in dev to catch changes.
@@ -126,6 +130,9 @@ export default function rplitePlugin(options: RplitePluginOptions = {}): Plugin 
      */
     configureServer(_server) {
       server = _server;
+      if (!options.logger) {
+        loggerRef.current = createViteLoggerAdapter(server.config.logger);
+      }
 
       // Middleware to serve the playground HTML
       server.middlewares.use('/__rplite', async (req, res, next) => {
@@ -212,4 +219,52 @@ function createWatcherIgnore(projectRoot: string, patterns: string[]) {
 function absoluteToRelative(projectRoot: string, absolutePath: string) {
   const relative = path.relative(projectRoot, absolutePath);
   return relative ? relative.split(path.sep).join('/') : path.basename(absolutePath);
+}
+
+function createDelegatedLogger(ref: { current?: ScannerLogger }): ScannerLogger {
+  return {
+    info(message, context) {
+      if (ref.current?.info) {
+        ref.current.info(message, context);
+      } else {
+        console.info(`[rplite] ${message}`, context ?? '');
+      }
+    },
+    warn(message, context) {
+      if (ref.current?.warn) {
+        ref.current.warn(message, context);
+      } else {
+        console.warn(`[rplite] ${message}`, context ?? '');
+      }
+    },
+    error(message, context) {
+      if (ref.current?.error) {
+        ref.current.error(message, context);
+      } else {
+        console.error(`[rplite] ${message}`, context ?? '');
+      }
+    },
+  };
+}
+
+function createViteLoggerAdapter(logger: Logger): ScannerLogger {
+  return {
+    info(message, context) {
+      logger.info(formatLogMessage(message, context));
+    },
+    warn(message, context) {
+      logger.warn(formatLogMessage(message, context));
+    },
+    error(message, context) {
+      logger.error(formatLogMessage(message, context));
+    },
+  };
+}
+
+function formatLogMessage(
+  message: string,
+  context?: Record<string, unknown>,
+): string {
+  const payload = context ? ` ${JSON.stringify(context)}` : '';
+  return `[rplite] ${message}${payload}`;
 }

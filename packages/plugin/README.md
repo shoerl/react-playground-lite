@@ -98,7 +98,7 @@ console.log(`Emitting manifest version ${MANIFEST_VERSION}`);
 
 ### Logging & diagnostics
 
-Pass a `logger` object to surface scanner events (ignored paths, file read failures, or scan errors) in your preferred logging layer. Each log includes a message identifier and a context payload detailing the event.
+Pass a `logger` object to surface scanner events (ignored paths, file read failures, or scan errors) in your preferred logging layer. Each log includes a message identifier and a context payload detailing the event. When no logger is supplied, the plugin defers to Vite's logger in dev mode and falls back to `console` during builds.
 
 ```ts
 rplite({
