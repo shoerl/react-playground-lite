@@ -11,7 +11,7 @@ The runtime is a self-contained React application served by `@rplite/plugin`. It
 The UI is built from a few key components:
 
 - **`Playground`**: The main component that orchestrates the entire UI. It manages the state, including the list of components, the currently selected component, and its prop values.
-- **`Controls`**: This component receives the definition for the selected component and dynamically renders a form with the appropriate input controls for each prop (e.g., a text input for `string` props, a checkbox for `boolean` props).
+- **`Controls`**: This component receives the definition for the selected component and dynamically renders inputs for primitives, string unions, string-valued enums, and one-dimensional arrays (using a comma-separated editor).
 - **`Preview`**: This component is responsible for rendering the selected component in an isolated environment.
 
 ### The `iframe` Architecture
@@ -52,3 +52,21 @@ graph TD
 ```
 
 This architecture ensures that the playground UI and the component being previewed are completely decoupled, providing stability and accurate previews.
+
+## Manifest Validation
+
+Before rendering, the runtime validates the manifest provided by the plugin via `validateManifest`. The helper asserts the manifest version and the shape of every component definition, preventing runtime crashes caused by mismatched schema updates.
+
+```ts
+import manifestModule from 'virtual:rplite-manifest';
+import { validateManifest } from './manifest';
+
+const manifest = validateManifest(manifestModule);
+```
+
+If you're embedding the runtime outside this repository, make sure your bundle exposes the helper alongside the main entry point so the manifest continues to be checked at runtime.
+
+## Development Tips
+
+- Run `yarn test` to execute the Vitest suite, which includes manifest validation and scanner inference checks.
+- Run `yarn typecheck` to ensure the runtime stays in sync with the plugin manifest types.

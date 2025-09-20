@@ -73,8 +73,42 @@ export default defineConfig({
     // Configure rplite to only scan the `src/components` directory
     rplite({
       srcDir: 'src/components',
+      ignore: ['**/*.stories.tsx'],
+      logger: {
+        info(message, context) {
+          if (message === 'rplite:scanner:ignored') {
+            console.log('[rplite] ignored', context?.path);
+          }
+        },
+      },
     }),
   ],
+});
+```
+
+### Manifest versioning & types
+
+The plugin exports a `MANIFEST_VERSION` constant and the manifest type definitions via `@rplite/plugin/manifest`. The runtime validates the manifest against this version before rendering, so bump the version whenever you introduce breaking schema changes.
+
+```ts
+import { MANIFEST_VERSION, type Manifest } from '@rplite/plugin/manifest';
+
+console.log(`Emitting manifest version ${MANIFEST_VERSION}`);
+```
+
+### Logging & diagnostics
+
+Pass a `logger` object to surface scanner events (ignored paths, file read failures, or scan errors) in your preferred logging layer. Each log includes a message identifier and a context payload detailing the event.
+
+```ts
+rplite({
+  logger: {
+    warn(message, context) {
+      if (message === 'rplite:scanner:scan-error') {
+        console.warn('[rplite] Failed to scan', context?.path, context?.error);
+      }
+    },
+  },
 });
 ```
 

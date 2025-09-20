@@ -6,12 +6,6 @@
   `rplite` finds your components, infers controls for their props, and serves a fast, clean UI to preview them. No story files needed.
 </p>
 
-<p align="center">
-  <img src="https://i.imgur.com/example.png" alt="rplite screenshot" width="600">
-</p>
-
----
-
 ## Why `rplite`?
 
 `rplite` is designed for developers who want a simple, fast, and unobtrusive way to visualize their React components. If you're building a component library or just want to work on components in isolation, `rplite` provides the essentials without the boilerplate.
@@ -23,10 +17,11 @@
 ## Features
 
 - **🚀 Zero-Configuration**: Drop it into your Vite-powered React project and it just works.
-- **🔍 Automatic Component Discovery**: Finds all your exported React components in your source directory.
-- **✨ Prop Control Inference**: Automatically generates controls for props with `string`, `number`, `boolean`, and string literal union types.
-- **🖼️ Isolated Previews**: Renders each component in an `iframe` to prevent style conflicts.
-- **⚡ Fast Development**: Integrates seamlessly with Vite's fast development server and Hot Module Replacement (HMR).
+- **🔍 Automatic Component Discovery**: Finds your exported React components with no extra story files.
+- **✨ Prop Control Inference**: Infers controls for primitives, string unions, string-valued enums, and single-level arrays.
+- **🛡️ Versioned Manifest**: The plugin/runtime share a schema-versioned manifest that is validated at runtime before rendering.
+- **🧭 Configurable Scanning**: Ignore noisy paths with glob patterns and hook into structured logger callbacks for diagnostics.
+- **⚡ Fast Development**: Integrates seamlessly with Vite's dev server and Hot Module Replacement (HMR).
 
 ## Quick Start
 
@@ -51,16 +46,19 @@ In your own Vite project, you would add `@rplite/plugin`. For this example proje
 // example/vite.config.ts
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import rplite from '../packages/plugin/src/index'; // Using local path
+import rplite from '@rplite/plugin';
 
 export default defineConfig({
   plugins: [
     react(),
-    // Add the rplite plugin
-    rplite(),
+    rplite({
+      // optional: configure ignore globs or logger hooks here
+    }),
   ],
 });
 ```
+
+> **Tip:** When developing inside this repository, run `yarn build` once to emit the plugin and runtime `dist/` directories before bundling or running the example app.
 
 ### 3. Run the Dev Server
 
@@ -73,6 +71,16 @@ yarn dev
 ### 4. Open the Playground
 
 Navigate to `http://localhost:5173/__rplite` (or whatever port Vite is using) to see your component playground!
+
+### 5. Validate Your Changes
+
+Run the automated checks before opening a pull request or trying the example app in production mode:
+
+```bash
+yarn test       # Vitest suite for plugin + runtime
+yarn typecheck  # Project references type-check
+yarn build      # Emits dist/ artifacts for plugin and runtime
+```
 
 ## How It Works
 
@@ -125,13 +133,15 @@ For more technical details, see the README files in the `@rplite/plugin` and `@r
 
 ## Limitations
 
-- Prop type inference is limited to simple primitive types.
-- No support for complex theming or context providers yet.
+- Inference currently covers primitives, string-based enums/unions, and single-level arrays. Nested shapes and complex generics are out of scope for now.
+- Components must accept a single `props` parameter to be detected.
+- The runtime does not yet provide theming, layout presets, or saved scenarios.
 
 ## Roadmap
 
-- [x] Support for named exports.
-- [ ] Better type inference for more complex types.
-- [ ] Theming and context provider support.
-- [ ] Saving component states as "stories" or "scenarios".
-- [ ] UI/UX improvements.
+See [`PROJECT_PLAN.md`](./PROJECT_PLAN.md) for the active multi-phase roadmap. Highlights include:
+
+- Hardening the scanner (watching, richer inference, diagnostics).
+- Polishing the playground UX with search, theming, and accessibility improvements.
+- Establishing CI, release tooling, and documentation workflows.
+- Building a showcase example app with reusable scenarios.

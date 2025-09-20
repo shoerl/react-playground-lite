@@ -12,7 +12,7 @@ There are many ways to contribute, from writing documentation to fixing bugs to 
 
 ## Development Setup
 
-This project is a monorepo using Yarn workspaces. To get started, you'll need to have [Node.js](https://nodejs.org/) (v16.9+) and [Yarn](https://yarnpkg.com/) (v3+) installed.
+This project is a monorepo using Yarn workspaces. To get started, install [Node.js 24.8.0](https://nodejs.org/) (see `mise.toml`) and [Yarn 3.2.0](https://yarnpkg.com/) via Corepack.
 
 1.  **Fork and Clone the Repository**
 
@@ -37,7 +37,15 @@ This project is a monorepo using Yarn workspaces. To get started, you'll need to
     yarn install
     ```
 
-4.  **Start the Development Server**
+4.  **Build the Workspace Packages**
+
+    Emit the `dist/` artifacts required by the plugin and runtime:
+
+    ```bash
+    yarn build
+    ```
+
+5.  **Start the Development Server**
 
     The best way to see your changes in action is to run the `example` application, which uses the `rplite` plugin and runtime.
 
@@ -61,16 +69,22 @@ The monorepo is organized into three main directories:
 
 ## Coding Style
 
-- **Formatting**: This project uses Prettier for automatic code formatting. Please run `yarn format` before committing your changes.
-- **Linting**: We use ESLint for code quality. You can run `yarn lint` to check for any issues.
-- **TypeScript**: Please follow standard TypeScript best practices. Add types for all new functions and variables.
-- **Comments**: Add TSDoc comments to all exported functions, types, and interfaces. Add inline comments for any complex or non-obvious logic.
+- Follow the guidelines in [`AGENTS.md`](./AGENTS.md), especially the "Writing Clean, Reusable, and Extensible TS/JS Code" section.
+- Keep changes small, composable, and well named. Prefer TypeScript types that communicate intent without unnecessary complexity.
+- The `yarn lint` script is currently a stub; rely on `yarn typecheck`, unit tests, and manual review to validate changes.
 
 ## Submitting a Pull Request
 
 1.  Create a new branch from `main` for your feature or bug fix.
 2.  Make your changes, following the coding style guidelines.
-3.  Ensure your code is formatted and passes the linter (`yarn format` and `yarn lint`).
+3.  Run the workspace checks:
+
+    ```bash
+    yarn typecheck
+    yarn test
+    yarn build
+    ```
+
 4.  Verify that the `example` app still works as expected with your changes.
 5.  Push your branch and open a pull request to the `main` branch.
 6.  In your pull request description, please explain the changes you've made and why. Link to any relevant issues.
