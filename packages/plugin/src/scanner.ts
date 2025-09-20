@@ -13,7 +13,19 @@ import {
 
 export type { ComponentDef, Manifest, PropDef } from './manifest.js';
 
-export const DEFAULT_IGNORE_PATTERNS = ['**/node_modules/**'];
+export const DEFAULT_IGNORE_PATTERNS = [
+  '**/node_modules/**',
+  '**/dist/**',
+  '**/build/**',
+  '**/.next/**',
+  '**/.vite/**',
+  '**/.storybook/**',
+  '**/storybook-static/**',
+  '**/coverage/**',
+  '**/*.test.*',
+  '**/*.spec.*',
+  '**/*.stories.*',
+];
 
 export interface ScannerLogger {
   info?(message: string, context?: Record<string, unknown>): void;
@@ -316,7 +328,11 @@ export function createScanner(options: ScannerOptions): Scanner {
    * @returns A record of prop definitions, or `null` if no props are found.
    * @internal
    */
-  const getPropsOfComponent = (node: ts.FunctionDeclaration | ts.ArrowFunction | ts.FunctionExpression, checker: ts.TypeChecker): Record<string, PropDef> | null => {
+  const getPropsOfComponent = (
+    node: ts.FunctionDeclaration | ts.ArrowFunction | ts.FunctionExpression,
+    checker: ts.TypeChecker,
+    componentNameForLogs?: string,
+  ): Record<string, PropDef> | null => {
     // Assume components have a single `props` object parameter.
     if (node.parameters.length !== 1) {
       return null;
@@ -337,6 +353,25 @@ export function createScanner(options: ScannerOptions): Scanner {
       const propDef = parsePropType(propType, checker);
       if (propDef) {
         props[propName] = propDef;
+      } else {
+        // Warn when a prop cannot be inferred to a supported type.
+        // This helps users understand why a control might be missing.
+        try {
+          const typeString = checker.typeToString(propType);
+          logger.warn(
+            'rplite:scanner:unsupported-prop',
+            {
+              component: componentNameForLogs ?? '(anonymous)',
+              prop: propName,
+              type: typeString,
+            } as unknown as Record<string, unknown>,
+          );
+        } catch {
+          logger.warn('rplite:scanner:unsupported-prop', {
+            component: componentNameForLogs ?? '(anonymous)',
+            prop: propName,
+          });
+        }
       }
     }
     return Object.keys(props).length > 0 ? props : null;
@@ -362,7 +397,7 @@ export function createScanner(options: ScannerOptions): Scanner {
       const decl = exportSymbol.getDeclarations()?.[0];
       if (!decl) return;
 
-      let componentName: string;
+      let componentName: string | undefined;
       let functionDecl: ts.FunctionDeclaration | ts.ArrowFunction | ts.FunctionExpression | undefined;
       const isDefaultExport = exportSymbol.name === 'default';
 
@@ -413,7 +448,7 @@ export function createScanner(options: ScannerOptions): Scanner {
             }
 
             if (funcDecl) {
-              const props = getPropsOfComponent(funcDecl, checker);
+              const props = getPropsOfComponent(funcDecl, checker, specifier.name.text);
               if (props) {
                 componentDefs.push({
                   name: specifier.name.text,
@@ -431,12 +466,14 @@ export function createScanner(options: ScannerOptions): Scanner {
 
       // If we found a function declaration that looks like a component, get its props.
       if (functionDecl) {
-        const props = getPropsOfComponent(functionDecl, checker);
+        const resolvedName =
+          componentName ?? path.basename(filePath, path.extname(filePath));
+        const props = getPropsOfComponent(functionDecl, checker, resolvedName);
         // We only consider it a component if it has props.
         // This is a limitation, but helps filter out non-component functions.
         if (props) {
           componentDefs.push({
-            name: componentName!,
+            name: resolvedName,
             path: path.relative(projectRoot, filePath).replace(/\\/g, '/'),
             props,
             isDefaultExport,
