@@ -9,12 +9,12 @@ import {
   DEFAULT_IGNORE_PATTERNS,
   type Scanner,
   type ScannerLogger,
-} from './scanner';
-import type { Manifest } from './manifest';
+} from './scanner.js';
+import type { Manifest } from './manifest.js';
 
-export { MANIFEST_VERSION } from './manifest';
-export type { Manifest } from './manifest';
-export type { ComponentDef, PropDef } from './scanner';
+export { MANIFEST_VERSION } from './manifest.js';
+export type { Manifest } from './manifest.js';
+export type { ComponentDef, PropDef } from './scanner.js';
 
 /**
  * @internal

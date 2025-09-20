@@ -9,9 +9,9 @@ import {
   type OptionPropDef,
   type PrimitivePropDef,
   type PropDef,
-} from './manifest';
+} from './manifest.js';
 
-export type { ComponentDef, Manifest, PropDef } from './manifest';
+export type { ComponentDef, Manifest, PropDef } from './manifest.js';
 
 export const DEFAULT_IGNORE_PATTERNS = ['**/node_modules/**'];
 
