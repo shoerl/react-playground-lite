@@ -1,5 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Manifest } from '@rplite/plugin/manifest';
+import type {
+  Manifest,
+  OptionPropDef,
+  PrimitivePropDef,
+  PropDef,
+} from '@rplite/plugin/manifest';
 import { Controls } from './Controls';
 import { Preview } from './Preview';
 
@@ -60,6 +65,44 @@ const previewPanelStyles: React.CSSProperties = {
   position: 'relative',
 };
 
+const SAMPLE_TAGS = ['Design', 'Analytics', 'Collaboration'];
+
+function getInitialPropValue(propDef: PropDef): unknown {
+  switch (propDef.type) {
+    case 'string':
+      return 'Sample text';
+    case 'number':
+      return 1;
+    case 'boolean':
+      return true;
+    case 'union':
+    case 'enum':
+      return propDef.options[0] ?? '';
+    case 'array':
+      return getArrayInitialValues(propDef.element);
+    default:
+      return undefined;
+  }
+}
+
+function getArrayInitialValues(
+  element: PrimitivePropDef | OptionPropDef,
+): unknown[] {
+  switch (element.type) {
+    case 'string':
+      return [...SAMPLE_TAGS];
+    case 'number':
+      return [25, 75];
+    case 'boolean':
+      return [true];
+    case 'union':
+    case 'enum':
+      return element.options.length > 0 ? [element.options[0]] : [];
+    default:
+      return [];
+  }
+}
+
 /**
  * The main UI of the React Playground.
  * It consists of a component list, a controls panel for props, and a preview area.
@@ -104,19 +147,12 @@ export function Playground({ manifest }: PlaygroundProps) {
   useEffect(() => {
     if (selectedComponent) {
       const initialProps: Record<string, any> = {};
-      // Set default values for certain prop types.
       for (const [propName, propDef] of Object.entries(
         selectedComponent.props,
       )) {
-        if (propDef.type === 'boolean') {
-          initialProps[propName] = false;
-        } else if (
-          (propDef.type === 'union' || propDef.type === 'enum') &&
-          propDef.options.length > 0
-        ) {
-          initialProps[propName] = propDef.options[0];
-        } else if (propDef.type === 'array') {
-          initialProps[propName] = [];
+        const value = getInitialPropValue(propDef);
+        if (value !== undefined) {
+          initialProps[propName] = value;
         }
       }
       setPropValues(initialProps);
