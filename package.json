@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "yarn workspace example dev",
     "preview": "yarn workspace example preview",
-    "build": "yarn workspace @rplite/plugin build && yarn workspace @rplite/runtime build",
+    "build": "yarn workspace @rplite/plugin build && yarn workspace @rplite/runtime build && yarn workspace @rplite/mui-demo build",
     "typecheck": "tsc -b packages/* example",
     "lint": "echo 'Linting not set up yet. Stub script.'",
     "test": "vitest run",
