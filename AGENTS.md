@@ -73,7 +73,10 @@ When contributing TypeScript or JavaScript, prioritize clarity, composability, a
 Code is written in TypeScript with native ES modules. Use two-space indentation, single quotes for strings, and trailing commas where TypeScript defaults produce them. Components should use PascalCase filenames (`Playground.tsx`), helper utilities camelCase, and exported APIs document intent with concise TSDoc blocks. Prefer named exports so the plugin can discover components reliably; default exports are supported but should be reserved for entry points.
 
 ## Testing Guidelines
-Automated tests are not yet configured. When introducing features, rely on `yarn typecheck` and the example app for regression coverage, and call out manual verification steps in the pull request. If you add a testing framework (Vitest or React Testing Library are good candidates), colocate specs beside the implementation using a `.test.ts` or `.test.tsx` suffix and document any new commands in `package.json`.
+- Run `yarn test` (Vitest) for scanner/runtime coverage and `yarn typecheck` for project references before opening a PR.
+- Keep new specs close to the code they cover (e.g., `*.test.ts` beside the implementation).
+- Document any manual verification (`yarn dev`, `/__rplite` smoke test) in the pull request description.
+- Update the relevant `packages/**/CHANGELOG.md` entry when behaviour changes for a published package.
 
 ## Commit & Pull Request Guidelines
 Existing history follows conventional prefixes (`feat:`, `fix:`, etc.) with concise summaries and optional issue references (`(#123)`). Use the same format and group related changes per commit. Pull requests should describe the problem, the solution, and manual test evidence; include screenshots for UI-facing updates and note any impacts on the plugin manifest or runtime API. Keep branches rebased onto `main` before requesting review.
