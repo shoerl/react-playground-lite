@@ -12,7 +12,7 @@ import AvatarGroup from '@mui/material/AvatarGroup';
 import Box from '@mui/material/Box';
 
 export interface PrimaryButtonProps {
-  label: string;
+  label?: string;
   variant?: 'contained' | 'outlined' | 'text';
   disabled?: boolean;
   onClick?: () => void;
@@ -32,9 +32,9 @@ export function PrimaryButton({
 }
 
 export interface InfoCardProps {
-  title: string;
-  body: string;
-  tags: string[];
+  title?: string;
+  body?: string;
+  tags?: string[];
   actionLabel?: string;
   onActionClick?: () => void;
 }
@@ -73,10 +73,10 @@ export function InfoCard({
 export type MetricStatus = 'positive' | 'neutral' | 'negative';
 
 export interface MetricBadgeProps {
-  label: string;
-  value: number;
+  label?: string;
+  value?: number;
   suffix?: string;
-  status: MetricStatus;
+  status?: MetricStatus;
 }
 
 const statusToColor: Record<MetricStatus, 'success' | 'default' | 'error'> = {
@@ -102,9 +102,9 @@ export function MetricBadge({
 }
 
 export interface ToggleSettingProps {
-  label: string;
+  label?: string;
   helperText?: string;
-  enabled: boolean;
+  enabled?: boolean;
   onChange?: (enabled: boolean) => void;
 }
 
@@ -136,7 +136,7 @@ export function ToggleSetting({
 }
 
 export interface AvatarListProps {
-  names: string[];
+  names?: string[];
   max?: number;
 }
 
@@ -156,7 +156,7 @@ export function AvatarList({
 }
 
 export interface TagListProps {
-  tags: string[];
+  tags?: string[];
 }
 
 export function TagList({ tags = ['next.js', 'design system', 'analytics'] }: TagListProps) {
