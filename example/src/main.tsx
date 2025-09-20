@@ -7,7 +7,7 @@ import {
   MetricBadge,
   ToggleSetting,
   AvatarList,
-} from '@rplite/mui-demo';
+} from './MuiShowcase';
 
 const theme = createTheme({
   palette: {
