@@ -38,6 +38,16 @@ const sidebarStyles: React.CSSProperties = {
   boxSizing: 'border-box',
 };
 
+const searchInputStyles: React.CSSProperties = {
+  width: '100%',
+  padding: '8px',
+  fontSize: '14px',
+  borderRadius: '4px',
+  border: '1px solid #ccc',
+  boxSizing: 'border-box',
+  marginBottom: '12px',
+};
+
 const listStyles: React.CSSProperties = {
   listStyle: 'none',
   padding: 0,
@@ -113,6 +123,8 @@ export function Playground({ manifest }: PlaygroundProps) {
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(
     null,
   );
+  // Search query for filtering component list.
+  const [query, setQuery] = useState('');
   // The current values of the props for the selected component.
   const [propValues, setPropValues] = useState<Record<string, any>>({});
 
@@ -125,6 +137,23 @@ export function Playground({ manifest }: PlaygroundProps) {
       return aName.localeCompare(bName);
     });
   }, [manifest.components]);
+
+  // Filtered list of components based on the search query.
+  const filteredComponents = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return sortedComponents;
+    return sortedComponents.filter(c => {
+      const filename = c.path.split('/').pop() ?? c.path;
+      const displayName = c.isDefaultExport
+        ? filename.replace(/\.tsx?$/, '')
+        : `${filename.replace(/\.tsx?$/, '')} / ${c.name}`;
+      return (
+        displayName.toLowerCase().includes(q) ||
+        c.path.toLowerCase().includes(q) ||
+        c.name.toLowerCase().includes(q)
+      );
+    });
+  }, [sortedComponents, query]);
 
   // Effect to select the first component by default.
   useEffect(() => {
@@ -173,8 +202,16 @@ export function Playground({ manifest }: PlaygroundProps) {
       {/* Sidebar with the list of discovered components */}
       <aside style={sidebarStyles}>
         <h2 style={{ fontSize: '18px', marginTop: 0 }}>Components</h2>
+        <input
+          type="search"
+          placeholder="Search components..."
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          aria-label="Search components"
+          style={searchInputStyles}
+        />
         <ul style={listStyles}>
-          {sortedComponents.map(c => {
+          {filteredComponents.map(c => {
             const id = `${c.path}:${c.name}`;
             // Generate a user-friendly display name.
             const displayName = c.isDefaultExport
