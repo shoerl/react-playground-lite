@@ -85,9 +85,10 @@ The monorepo is organized into three main directories:
     yarn build
     ```
 
-4.  Verify that the `example` app still works as expected with your changes.
-5.  Push your branch and open a pull request to the `main` branch.
-6.  In your pull request description, please explain the changes you've made and why. Link to any relevant issues.
+4.  Update the relevant package changelog(s) under `packages/**/CHANGELOG.md` when you change published behaviour.
+5.  Verify that the `example` app still works as expected with your changes.
+6.  Push your branch and open a pull request to the `main` branch.
+7.  In your pull request description, please explain the changes you've made and why. Link to any relevant issues.
 
 ---
 
