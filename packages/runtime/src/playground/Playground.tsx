@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Manifest, ComponentDef } from '../../../plugin/src/scanner';
+import type { Manifest } from '@rplite/plugin/manifest';
 import { Controls } from './Controls';
 import { Preview } from './Preview';
 

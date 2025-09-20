@@ -1,8 +1,8 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import type { Manifest } from '../../plugin/src/scanner';
 import { Playground } from './playground/Playground';
-import manifest from 'virtual:rplite-manifest';
+import { validateManifest } from './manifest';
+import manifestModule from 'virtual:rplite-manifest';
 
 const container = document.getElementById('root');
 
@@ -11,5 +11,6 @@ if (!container) {
 }
 
 const root = createRoot(container);
+const manifest = validateManifest(manifestModule);
 
-root.render(<Playground manifest={manifest as Manifest} />);
+root.render(<Playground manifest={manifest} />);

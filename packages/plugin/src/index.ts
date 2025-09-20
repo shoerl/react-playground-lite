@@ -3,7 +3,12 @@ import path from 'path';
 import fs from 'fs';
 import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
-import { createScanner, Manifest, Scanner } from './scanner.js';
+import { createScanner, type Scanner } from './scanner.js';
+import type { Manifest } from './manifest.js';
+
+export { MANIFEST_VERSION } from './manifest.js';
+export type { Manifest } from './manifest.js';
+export type { ComponentDef, PropDef } from './scanner.js';
 
 /**
  * @internal

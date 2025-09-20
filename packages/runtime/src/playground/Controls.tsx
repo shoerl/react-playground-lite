@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ComponentDef, PropDef } from '../../../plugin/src/scanner';
+import type { ComponentDef, PropDef } from '@rplite/plugin/manifest';
 
 /**
  * Props for the `Controls` component.

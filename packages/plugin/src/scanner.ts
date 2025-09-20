@@ -1,36 +1,14 @@
 import ts from 'typescript';
 import path from 'path';
 import fs from 'fs';
+import {
+  MANIFEST_VERSION,
+  type ComponentDef,
+  type Manifest,
+  type PropDef,
+} from './manifest.js';
 
-/**
- * Defines the types of props that can be inferred and controlled in the playground.
- */
-export type PropDef =
-  | { type: 'string' }
-  | { type: 'number' }
-  | { type: 'boolean' }
-  | { type: 'union'; options: string[] };
-
-/**
- * Represents a discovered React component.
- */
-export type ComponentDef = {
-  /** The name of the component. */
-  name: string;
-  /** The component's file path, relative to the project root. */
-  path: string;
-  /** A map of prop names to their inferred definitions. */
-  props: Record<string, PropDef>;
-  /** Whether the component is a default export. */
-  isDefaultExport: boolean;
-};
-
-/**
- * The manifest of all discovered components.
- */
-export type Manifest = {
-  components: ComponentDef[];
-};
+export type { ComponentDef, Manifest, PropDef } from './manifest.js';
 
 /**
  * Options for the component scanner.
@@ -289,7 +267,7 @@ export function createScanner(options: ScannerOptions): Scanner {
         console.error(`Error scanning file ${file}:`, error);
       }
     }
-    return { components };
+    return { version: MANIFEST_VERSION, components };
   };
 
   return { options, scan };

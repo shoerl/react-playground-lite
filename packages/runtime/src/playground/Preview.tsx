@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import type { ComponentDef } from '../../../plugin/src/scanner';
+import type { ComponentDef } from '@rplite/plugin/manifest';
 
 /**
  * Props for the `Preview` component.
