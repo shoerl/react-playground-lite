@@ -6,6 +6,8 @@ import {
   MANIFEST_VERSION,
   type ComponentDef,
   type Manifest,
+  type OptionPropDef,
+  type PrimitivePropDef,
   type PropDef,
 } from './manifest';
 
@@ -98,6 +100,78 @@ function createIgnoreMatcher(
   };
 }
 
+function parseEnumType(type: ts.Type, checker: ts.TypeChecker): OptionPropDef | null {
+  const resolveSymbol = (candidate: ts.Symbol | undefined): ts.Symbol | undefined => {
+    if (!candidate) return undefined;
+    if (candidate.flags & ts.SymbolFlags.Enum) return candidate;
+
+    if (candidate.flags & ts.SymbolFlags.EnumMember) {
+      const declaration = candidate.declarations?.[0];
+      if (declaration && ts.isEnumMember(declaration)) {
+        const enumDecl = declaration.parent;
+        if (enumDecl && ts.isEnumDeclaration(enumDecl) && enumDecl.name) {
+          const enumSymbol = checker.getSymbolAtLocation(enumDecl.name);
+          if (enumSymbol && enumSymbol.flags & ts.SymbolFlags.Enum) {
+            return enumSymbol;
+          }
+        }
+      }
+    }
+
+    if (candidate.flags & ts.SymbolFlags.Alias) {
+      const aliased = checker.getAliasedSymbol(candidate);
+      return resolveSymbol(aliased);
+    }
+
+    return undefined;
+  };
+
+  const enumSymbol = resolveSymbol(type.aliasSymbol ?? type.symbol);
+  if (!enumSymbol) return null;
+
+  const memberTable = enumSymbol.members ?? enumSymbol.exports;
+  if (!memberTable) return null;
+
+  const options: string[] = [];
+  const seen = new Set<string>();
+
+  memberTable.forEach(memberSymbol => {
+    if (!(memberSymbol.flags & ts.SymbolFlags.EnumMember)) {
+      return;
+    }
+    let optionValue: string | number | undefined;
+    const declaration = memberSymbol.valueDeclaration;
+    if (declaration && ts.isEnumMember(declaration)) {
+      const constantValue = checker.getConstantValue(declaration);
+      if (constantValue !== undefined) {
+        optionValue = constantValue;
+      } else if (
+        declaration.initializer &&
+        ts.isStringLiteralLike(declaration.initializer)
+      ) {
+        optionValue = declaration.initializer.text;
+      }
+    }
+
+    if (optionValue === undefined) {
+      optionValue = checker.symbolToString(memberSymbol);
+    }
+
+    const stringValue = String(optionValue);
+    if (!seen.has(stringValue)) {
+      seen.add(stringValue);
+      options.push(stringValue);
+    }
+  });
+
+  if (options.length === 0) {
+    return null;
+  }
+
+  const enumName = checker.symbolToString(enumSymbol);
+  return { type: 'enum', name: enumName, options };
+}
+
 /**
  * Recursively finds all `.ts` and `.tsx` files in a directory.
  * @param dir - The directory to search.
@@ -172,22 +246,21 @@ export function createScanner(options: ScannerOptions): Scanner {
   };
 
   /**
-   * Parses a TypeScript type and returns a `PropDef` if it's a supported type.
-   * @param type - The TypeScript type to parse.
-   * @param checker - The TypeScript type checker.
-   * @returns A `PropDef` or `null` if the type is not supported.
-   * @internal
+   * Parses a TypeScript type and returns a base (non-array) prop definition if supported.
    */
-  const parsePropType = (type: ts.Type, checker: ts.TypeChecker): PropDef | null => {
-    // We don't handle nullable types, so get the base type.
+  const parseBasePropType = (
+    type: ts.Type,
+    checker: ts.TypeChecker,
+  ): (PrimitivePropDef | OptionPropDef) | null => {
     const nonNullableType = type.getNonNullableType();
 
-    // Check for basic primitive types.
     if (nonNullableType.flags & ts.TypeFlags.String) return { type: 'string' };
     if (nonNullableType.flags & ts.TypeFlags.Number) return { type: 'number' };
     if (nonNullableType.flags & ts.TypeFlags.Boolean) return { type: 'boolean' };
 
-    // Check for a union of string literals, e.g., `'a' | 'b' | 'c'`.
+    const enumDef = parseEnumType(nonNullableType, checker);
+    if (enumDef) return enumDef;
+
     if (nonNullableType.isUnion()) {
       const options: string[] = [];
       let isStringLiteralUnion = true;
@@ -195,7 +268,6 @@ export function createScanner(options: ScannerOptions): Scanner {
         if (t.isStringLiteral()) {
           options.push(t.value);
         } else {
-          // If any type in the union is not a string literal, we don't support it.
           isStringLiteralUnion = false;
           break;
         }
@@ -204,6 +276,36 @@ export function createScanner(options: ScannerOptions): Scanner {
         return { type: 'union', options };
       }
     }
+
+    return null;
+  };
+
+  /**
+   * Parses a TypeScript type and returns a `PropDef` if it's a supported type.
+   * @param type - The TypeScript type to parse.
+   * @param checker - The TypeScript type checker.
+   * @returns A `PropDef` or `null` if the type is not supported.
+   * @internal
+   */
+  const parsePropType = (type: ts.Type, checker: ts.TypeChecker): PropDef | null => {
+    const base = parseBasePropType(type, checker);
+    if (base) return base;
+
+    const nonNullableType = type.getNonNullableType();
+
+    if (checker.isArrayType(nonNullableType)) {
+      const elementType = checker.getIndexTypeOfType(
+        nonNullableType,
+        ts.IndexKind.Number,
+      );
+      if (elementType) {
+        const elementDef = parseBasePropType(elementType, checker);
+        if (elementDef) {
+          return { type: 'array', element: elementDef };
+        }
+      }
+    }
+
     return null;
   };
 

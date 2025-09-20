@@ -10,13 +10,32 @@ export type ManifestVersion = '1';
 export const MANIFEST_VERSION: ManifestVersion = '1';
 
 /**
- * Defines the types of props that can be inferred and controlled in the playground.
+ * Primitive prop kinds supported by the playground.
  */
-export type PropDef =
+export type PrimitivePropDef =
   | { type: 'string' }
   | { type: 'number' }
-  | { type: 'boolean' }
-  | { type: 'union'; options: string[] };
+  | { type: 'boolean' };
+
+/**
+ * Props that expose a finite set of options.
+ */
+export type OptionPropDef =
+  | { type: 'union'; options: string[] }
+  | { type: 'enum'; name?: string; options: string[] };
+
+/**
+ * Arrays of supported primitive/option values.
+ */
+export interface ArrayPropDef {
+  type: 'array';
+  element: PrimitivePropDef | OptionPropDef;
+}
+
+/**
+ * Defines the types of props that can be inferred and controlled in the playground.
+ */
+export type PropDef = PrimitivePropDef | OptionPropDef | ArrayPropDef;
 
 /**
  * Represents a discovered React component.
@@ -41,4 +60,3 @@ export interface Manifest {
   /** All components discovered by the scanner. */
   components: ComponentDef[];
 }
-

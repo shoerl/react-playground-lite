@@ -1,5 +1,10 @@
 import React from 'react';
-import type { ComponentDef, PropDef } from '@rplite/plugin/manifest';
+import type {
+  ComponentDef,
+  OptionPropDef,
+  PrimitivePropDef,
+  PropDef,
+} from '@rplite/plugin/manifest';
 
 /**
  * Props for the `Controls` component.
@@ -37,6 +42,13 @@ const inputStyles: React.CSSProperties = {
 const selectStyles: React.CSSProperties = {
   ...inputStyles,
   appearance: 'none',
+};
+
+const textareaStyles: React.CSSProperties = {
+  ...inputStyles,
+  minHeight: '80px',
+  fontFamily: 'monospace',
+  resize: 'vertical',
 };
 
 const checkboxContainerStyles: React.CSSProperties = {
@@ -124,8 +136,94 @@ function PropControl({ propName, propDef, value, onChange }: PropControlProps) {
           </select>
         </>
       );
+    case 'enum':
+      return (
+        <>
+          <label htmlFor={propName} style={labelStyles}>
+            {propName}
+          </label>
+          <select
+            id={propName}
+            value={value || ''}
+            onChange={e => onChange(e.target.value)}
+            style={selectStyles}
+          >
+            {propDef.options.map(option => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </>
+      );
+    case 'array': {
+      const serializedValue = Array.isArray(value)
+        ? value.join(', ')
+        : '';
+
+      return (
+        <>
+          <label htmlFor={propName} style={labelStyles}>
+            {propName}
+          </label>
+          <textarea
+            id={propName}
+            value={serializedValue}
+            placeholder="Enter comma-separated values"
+            onChange={e => onChange(parseArrayInput(e.target.value, propDef.element))}
+            style={textareaStyles}
+          />
+          <small style={{ display: 'block', marginTop: '4px', color: '#555' }}>
+            {describeArrayElement(propDef.element)}
+          </small>
+        </>
+      );
+    }
     default:
       return null;
+  }
+}
+
+function parseArrayInput(
+  raw: string,
+  element: PrimitivePropDef | OptionPropDef,
+): unknown[] {
+  const parts = raw
+    .split(',')
+    .map(part => part.trim())
+    .filter(part => part.length > 0);
+
+  switch (element.type) {
+    case 'number':
+      return parts
+        .map(part => Number(part))
+        .filter(value => !Number.isNaN(value));
+    case 'boolean':
+      return parts
+        .map(part => part.toLowerCase())
+        .filter(part => part === 'true' || part === 'false')
+        .map(part => part === 'true');
+    case 'union':
+    case 'enum':
+      return parts.filter(part => element.options.includes(part));
+    default:
+      return parts;
+  }
+}
+
+function describeArrayElement(element: PrimitivePropDef | OptionPropDef): string {
+  switch (element.type) {
+    case 'string':
+      return 'Comma-separated text values';
+    case 'number':
+      return 'Comma-separated numbers';
+    case 'boolean':
+      return 'Comma-separated true/false values';
+    case 'union':
+    case 'enum':
+      return `Allowed values: ${element.options.join(', ')}`;
+    default:
+      return 'Comma-separated values';
   }
 }
 

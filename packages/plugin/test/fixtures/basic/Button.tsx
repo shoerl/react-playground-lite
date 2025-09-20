@@ -1,20 +1,35 @@
 import React from 'react';
 
+export enum ButtonStatus {
+  Active = 'active',
+  Disabled = 'disabled',
+}
+
 type ButtonProps = {
   label: string;
   disabled: boolean;
   variant: 'primary' | 'secondary';
+  tags: string[];
+  status: ButtonStatus;
 };
 
 export const Button = (props: ButtonProps) => (
-  <button disabled={props.disabled} data-variant={props.variant}>
+  <button
+    disabled={props.disabled}
+    data-variant={props.variant}
+    data-status={props.status}
+  >
     {props.label}
   </button>
 );
 
 export default function ButtonDefault(props: ButtonProps) {
   return (
-    <button disabled={props.disabled} data-default="true">
+    <button
+      disabled={props.disabled}
+      data-default="true"
+      data-status={props.status}
+    >
       {props.label}
     </button>
   );

@@ -1,7 +1,10 @@
 import { MANIFEST_VERSION } from '@rplite/plugin/manifest';
 import type {
+  ArrayPropDef,
   ComponentDef,
   Manifest,
+  OptionPropDef,
+  PrimitivePropDef,
   PropDef,
 } from '@rplite/plugin/manifest';
 
@@ -21,11 +24,11 @@ function assert(condition: unknown, message: string): asserts condition {
   }
 }
 
-function validatePropDef(
+function validateBasePropDef(
   componentName: string,
   propName: string,
   value: unknown,
-): PropDef {
+): PrimitivePropDef | OptionPropDef {
   assert(
     value !== null && typeof value === 'object',
     `Prop "${propName}" on component "${componentName}" must be an object.`,
@@ -33,22 +36,59 @@ function validatePropDef(
 
   const type = (value as { type?: unknown }).type;
   assert(
-    type === 'string' || type === 'number' || type === 'boolean' || type === 'union',
+    type === 'string' ||
+      type === 'number' ||
+      type === 'boolean' ||
+      type === 'union' ||
+      type === 'enum',
     `Prop "${propName}" on component "${componentName}" has unsupported type "${String(
       type,
     )}".`,
   );
 
-  if (type === 'union') {
+  if (type === 'union' || type === 'enum') {
     const options = (value as { options?: unknown }).options;
     assert(
       Array.isArray(options) && options.every(option => typeof option === 'string'),
-      `Prop "${propName}" on component "${componentName}" must provide a string[] options array for union types.`,
+      `Prop "${propName}" on component "${componentName}" must provide a string[] options array for ${type} types.`,
     );
-    return { type, options: [...options] };
+    const normalized: OptionPropDef = {
+      type,
+      options: [...options],
+      ...(type === 'enum' && typeof (value as { name?: unknown }).name === 'string'
+        ? { name: (value as { name?: string }).name }
+        : {}),
+    };
+    return normalized;
   }
 
-  return { type } as Extract<PropDef, { type: 'string' | 'number' | 'boolean' }>;
+  return { type } as PrimitivePropDef;
+}
+
+function validatePropDef(
+  componentName: string,
+  propName: string,
+  value: unknown,
+): PropDef {
+  if (
+    value !== null &&
+    typeof value === 'object' &&
+    (value as { type?: unknown }).type === 'array'
+  ) {
+    const elementValue = (value as { element?: unknown }).element;
+    assert(
+      elementValue !== undefined,
+      `Prop "${propName}" on component "${componentName}" must specify an element definition when using type "array".`,
+    );
+    const element = validateBasePropDef(componentName, `${propName}[]`, elementValue);
+    const arrayDef: ArrayPropDef = {
+      type: 'array',
+      element,
+    };
+    return arrayDef;
+  }
+
+  return validateBasePropDef(componentName, propName, value);
 }
 
 function validateComponentDef(index: number, value: unknown): ComponentDef {
@@ -111,4 +151,3 @@ export function validateManifest(payload: unknown): Manifest {
     components,
   };
 }
-

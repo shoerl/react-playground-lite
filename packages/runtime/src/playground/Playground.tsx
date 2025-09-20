@@ -110,8 +110,13 @@ export function Playground({ manifest }: PlaygroundProps) {
       )) {
         if (propDef.type === 'boolean') {
           initialProps[propName] = false;
-        } else if (propDef.type === 'union' && propDef.options.length > 0) {
+        } else if (
+          (propDef.type === 'union' || propDef.type === 'enum') &&
+          propDef.options.length > 0
+        ) {
           initialProps[propName] = propDef.options[0];
+        } else if (propDef.type === 'array') {
+          initialProps[propName] = [];
         }
       }
       setPropValues(initialProps);

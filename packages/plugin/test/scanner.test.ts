@@ -42,6 +42,12 @@ describe('createScanner', () => {
       label: { type: 'string' },
       disabled: { type: 'boolean' },
       variant: { type: 'union', options: ['primary', 'secondary'] },
+      tags: { type: 'array', element: { type: 'string' } },
+      status: {
+        type: 'enum',
+        name: 'ButtonStatus',
+        options: ['active', 'disabled'],
+      },
     });
   });
 

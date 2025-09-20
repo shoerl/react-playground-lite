@@ -13,7 +13,7 @@ The heart of the plugin is the component scanner. When Vite starts, the plugin r
 By traversing the AST, the scanner can:
 - Identify all `export` statements.
 - Determine if an export is a React component (currently, it assumes exported functions that take a single `props` object are components).
-- Analyze the `props` type definition to infer prop types (`string`, `number`, `boolean`, and unions of string literals).
+- Analyze the `props` type definition to infer prop types (`string`, `number`, `boolean`, unions of string literals, enums, and one-dimensional arrays of those shapes).
 
 This process is what allows `rplite` to be zero-config. It understands your components by reading the code directly, not by requiring you to write special "story" files.
 

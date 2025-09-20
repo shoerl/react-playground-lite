@@ -16,6 +16,15 @@ const baseManifest = {
         label: { type: 'string' },
         disabled: { type: 'boolean' },
         size: { type: 'union', options: ['sm', 'md', 'lg'] },
+        status: {
+          type: 'enum',
+          name: 'Status',
+          options: ['active', 'disabled'],
+        },
+        tags: {
+          type: 'array',
+          element: { type: 'string' },
+        },
       },
     },
   ],
@@ -30,6 +39,15 @@ describe('validateManifest', () => {
     expect(manifest.components[0].props.size).toEqual({
       type: 'union',
       options: ['sm', 'md', 'lg'],
+    });
+    expect(manifest.components[0].props.status).toEqual({
+      type: 'enum',
+      name: 'Status',
+      options: ['active', 'disabled'],
+    });
+    expect(manifest.components[0].props.tags).toEqual({
+      type: 'array',
+      element: { type: 'string' },
     });
   });
 
@@ -64,5 +82,23 @@ describe('validateManifest', () => {
         ],
       }),
     ).toThrowError(/unsupported type/);
+  });
+
+  it('rejects array props without element definition', () => {
+    expect(() =>
+      validateManifest({
+        version: MANIFEST_VERSION,
+        components: [
+          {
+            name: 'BrokenArray',
+            path: 'Broken.tsx',
+            isDefaultExport: false,
+            props: {
+              items: { type: 'array' },
+            },
+          },
+        ],
+      }),
+    ).toThrowError(/element definition/);
   });
 });
