@@ -52,9 +52,13 @@ This is the main function you use in your `vite.config.ts`.
 
 An object with the following properties:
 
-| Option   | Type     | Default | Description                                                               |
-| :------- | :------- | :------ | :------------------------------------------------------------------------ |
-| `srcDir` | `string` | `'src'` | The directory to scan for components, relative to the project root. |
+| Option    | Type              | Default | Description                                                                                 |
+| :-------- | :---------------- | :------ | :------------------------------------------------------------------------------------------ |
+| `srcDir`  | `string`          | `'src'` | Directory to scan for components, relative to the project root.                             |
+| `ignore`  | `string[]`        | `[]`    | Additional glob patterns (relative to the project root) to exclude from component scanning. |
+| `logger`  | `ScannerLogger`   | `null`  | Optional logger implementing `info`, `warn`, or `error` for scanner diagnostics.            |
+
+`ScannerLogger` is a lightweight interface with optional `info`, `warn`, and `error` methods. Each method receives a message identifier such as `rplite:scanner:ignored` and a context payload describing what happened during scanning.
 
 **Example:**
 ```typescript

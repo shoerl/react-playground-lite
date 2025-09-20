@@ -1,6 +1,7 @@
 import ts from 'typescript';
 import path from 'path';
 import fs from 'fs';
+import picomatch from 'picomatch';
 import {
   MANIFEST_VERSION,
   type ComponentDef,
@@ -10,6 +11,14 @@ import {
 
 export type { ComponentDef, Manifest, PropDef } from './manifest';
 
+export const DEFAULT_IGNORE_PATTERNS = ['**/node_modules/**'];
+
+export interface ScannerLogger {
+  info?(message: string, context?: Record<string, unknown>): void;
+  warn?(message: string, context?: Record<string, unknown>): void;
+  error?(message: string, context?: Record<string, unknown>): void;
+}
+
 /**
  * Options for the component scanner.
  */
@@ -18,6 +27,10 @@ export interface ScannerOptions {
   srcDir: string;
   /** The root directory of the project. */
   projectRoot: string;
+  /** Glob patterns (relative to the project root) to exclude from scanning. */
+  ignore?: string[];
+  /** Optional logger for diagnostics and warnings. */
+  logger?: ScannerLogger;
 }
 
 /**
@@ -30,29 +43,111 @@ export interface Scanner {
   scan: () => Manifest;
 }
 
+type NormalizedPath = string;
+
+interface IgnoreMatch {
+  matched: boolean;
+  pattern?: string;
+  relativePath: NormalizedPath;
+  isDefault?: boolean;
+}
+
+type IgnoreMatcher = (absolutePath: string) => IgnoreMatch;
+
+function toPosixPath(filePath: string): NormalizedPath {
+  return filePath.split(path.sep).join('/');
+}
+
+function toRelativePath(projectRoot: string, absolutePath: string): NormalizedPath {
+  const relative = path.relative(projectRoot, absolutePath);
+  return relative.length > 0 ? toPosixPath(relative) : toPosixPath(path.basename(absolutePath));
+}
+
+function createLogger(custom?: ScannerLogger): Required<ScannerLogger> {
+  return {
+    info: custom?.info ?? (() => {}),
+    warn: custom?.warn ?? ((message, context) => console.warn(message, context ?? '')),
+    error: custom?.error ?? ((message, context) => console.error(message, context ?? '')),
+  };
+}
+
+function createIgnoreMatcher(
+  projectRoot: string,
+  ignorePatterns: string[],
+  userPatterns: Set<string>,
+): IgnoreMatcher {
+  const compiled = ignorePatterns.map(pattern => ({
+    pattern,
+    matcher: picomatch(pattern, { dot: true }),
+    isDefault: !userPatterns.has(pattern),
+  }));
+
+  return absolutePath => {
+    const relativePath = toRelativePath(projectRoot, absolutePath);
+    for (const entry of compiled) {
+      if (entry.matcher(relativePath)) {
+        return {
+          matched: true,
+          pattern: entry.pattern,
+          relativePath,
+          isDefault: entry.isDefault,
+        };
+      }
+    }
+    return { matched: false, relativePath };
+  };
+}
+
 /**
  * Recursively finds all `.ts` and `.tsx` files in a directory.
  * @param dir - The directory to search.
  * @returns A list of absolute file paths.
  * @internal
  */
-function findComponentFiles(dir: string): string[] {
-  let files: string[] = [];
+function findComponentFiles(
+  dir: string,
+  projectRoot: string,
+  shouldIgnore: IgnoreMatcher,
+  logger: Required<ScannerLogger>,
+): string[] {
+  const files: string[] = [];
+  let entries: fs.Dirent[];
+
   try {
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        if (entry.name === 'node_modules') continue;
-        files = files.concat(findComponentFiles(fullPath));
-      } else if (entry.isFile() && (entry.name.endsWith('.tsx') || entry.name.endsWith('.ts'))) {
-        files.push(fullPath);
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch (error) {
+    logger.warn('rplite:scanner:read-error', {
+      path: toRelativePath(projectRoot, dir),
+      error: (error as Error).message,
+    });
+    return files;
+  }
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    const match = shouldIgnore(fullPath);
+    if (match.matched) {
+      if (!match.isDefault) {
+        logger.info('rplite:scanner:ignored', {
+          path: match.relativePath,
+          pattern: match.pattern,
+        });
       }
     }
-  } catch (error) {
-    // Silently ignore errors, e.g., permission denied
-    console.error(`Error reading directory ${dir}:`, error);
+    if (match.matched) {
+      continue;
+    }
+
+    if (entry.isDirectory()) {
+      files.push(...findComponentFiles(fullPath, projectRoot, shouldIgnore, logger));
+    } else if (
+      entry.isFile() &&
+      (entry.name.endsWith('.tsx') || entry.name.endsWith('.ts'))
+    ) {
+      files.push(fullPath);
+    }
   }
+
   return files;
 }
 
@@ -63,6 +158,18 @@ function findComponentFiles(dir: string): string[] {
  */
 export function createScanner(options: ScannerOptions): Scanner {
   const { srcDir, projectRoot } = options;
+  const logger = createLogger(options.logger);
+  const userPatterns = new Set(options.ignore ?? []);
+  const ignorePatterns = Array.from(
+    new Set([...DEFAULT_IGNORE_PATTERNS, ...userPatterns]),
+  );
+  const shouldIgnore = createIgnoreMatcher(projectRoot, ignorePatterns, userPatterns);
+  const resolvedOptions: ScannerOptions = {
+    srcDir,
+    projectRoot,
+    ignore: options.ignore,
+    logger: options.logger,
+  };
 
   /**
    * Parses a TypeScript type and returns a `PropDef` if it's a supported type.
@@ -244,7 +351,7 @@ export function createScanner(options: ScannerOptions): Scanner {
    * @returns A manifest of all discovered components.
    */
   const scan = (): Manifest => {
-    const files = findComponentFiles(srcDir);
+    const files = findComponentFiles(srcDir, projectRoot, shouldIgnore, logger);
 
     // Create a TypeScript program to analyze the files.
     const program = ts.createProgram(files, {
@@ -263,12 +370,14 @@ export function createScanner(options: ScannerOptions): Scanner {
           components.push(...defs);
         }
       } catch (error) {
-        // Log errors but don't crash the whole process.
-        console.error(`Error scanning file ${file}:`, error);
+        logger.warn('rplite:scanner:scan-error', {
+          path: toRelativePath(projectRoot, file),
+          error: (error as Error).message,
+        });
       }
     }
     return { version: MANIFEST_VERSION, components };
   };
 
-  return { options, scan };
+  return { options: resolvedOptions, scan };
 }

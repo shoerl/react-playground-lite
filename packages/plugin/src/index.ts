@@ -3,7 +3,13 @@ import path from 'path';
 import fs from 'fs';
 import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
-import { createScanner, type Scanner } from './scanner';
+import picomatch from 'picomatch';
+import {
+  createScanner,
+  DEFAULT_IGNORE_PATTERNS,
+  type Scanner,
+  type ScannerLogger,
+} from './scanner';
 import type { Manifest } from './manifest';
 
 export { MANIFEST_VERSION } from './manifest';
@@ -31,6 +37,10 @@ export interface RplitePluginOptions {
    * @default 'src'
    */
   srcDir?: string;
+  /** Glob patterns (relative to the project root) that should be ignored. */
+  ignore?: string[];
+  /** Custom logger for scanner diagnostics. */
+  logger?: ScannerLogger;
 }
 
 /**
@@ -44,6 +54,11 @@ export default function rplitePlugin(options: RplitePluginOptions = {}): Plugin 
   const { srcDir = 'src' } = options;
   const projectRoot = process.cwd();
   const resolvedSrcDir = path.resolve(projectRoot, srcDir);
+  const userIgnorePatterns = options.ignore ? [...options.ignore] : [];
+  const ignorePatterns = Array.from(
+    new Set([...DEFAULT_IGNORE_PATTERNS, ...userIgnorePatterns]),
+  );
+  const shouldIgnoreWatcher = createWatcherIgnore(projectRoot, ignorePatterns);
   const pluginDir = path.dirname(fileURLToPath(import.meta.url));
   const localRuntimeDevEntry = path.resolve(
     pluginDir,
@@ -66,6 +81,8 @@ export default function rplitePlugin(options: RplitePluginOptions = {}): Plugin 
       scanner = createScanner({
         srcDir: resolvedSrcDir,
         projectRoot,
+        ignore: userIgnorePatterns,
+        logger: options.logger,
       });
     }
     // Invalidate manifest cache for every request in dev to catch changes.
@@ -164,7 +181,8 @@ export default function rplitePlugin(options: RplitePluginOptions = {}): Plugin 
       server.watcher.on('all', (_event, filePath) => {
         if (
           filePath.startsWith(resolvedSrcDir) &&
-          (filePath.endsWith('.tsx') || filePath.endsWith('.ts'))
+          (filePath.endsWith('.tsx') || filePath.endsWith('.ts')) &&
+          !shouldIgnoreWatcher(filePath)
         ) {
           const mod =
             server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_MODULE_ID);
@@ -177,4 +195,21 @@ export default function rplitePlugin(options: RplitePluginOptions = {}): Plugin 
       });
     },
   };
+}
+
+function createWatcherIgnore(projectRoot: string, patterns: string[]) {
+  const compiled = patterns.map(pattern => ({
+    pattern,
+    matcher: picomatch(pattern, { dot: true }),
+  }));
+
+  return (absolutePath: string) => {
+    const relative = absoluteToRelative(projectRoot, absolutePath);
+    return compiled.some(entry => entry.matcher(relative));
+  };
+}
+
+function absoluteToRelative(projectRoot: string, absolutePath: string) {
+  const relative = path.relative(projectRoot, absolutePath);
+  return relative ? relative.split(path.sep).join('/') : path.basename(absolutePath);
 }

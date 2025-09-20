@@ -1,15 +1,16 @@
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createScanner } from '../src/scanner.ts';
 import { MANIFEST_VERSION } from '../src/manifest.ts';
 
-const fixturesDir = path.resolve(__dirname, 'fixtures');
+const basicFixtures = path.resolve(__dirname, 'fixtures/basic');
+const ignoreFixtures = path.resolve(__dirname, 'fixtures/ignore');
 
 describe('createScanner', () => {
   it('emits versioned manifest with component props', () => {
     const scanner = createScanner({
-      srcDir: fixturesDir,
-      projectRoot: fixturesDir,
+      srcDir: basicFixtures,
+      projectRoot: basicFixtures,
     });
 
     const manifest = scanner.scan();
@@ -41,6 +42,25 @@ describe('createScanner', () => {
       label: { type: 'string' },
       disabled: { type: 'boolean' },
       variant: { type: 'union', options: ['primary', 'secondary'] },
+    });
+  });
+
+  it('respects ignore patterns and logs skipped files', () => {
+    const info = vi.fn();
+    const scanner = createScanner({
+      srcDir: ignoreFixtures,
+      projectRoot: ignoreFixtures,
+      ignore: ['**/Ignored.tsx'],
+      logger: { info },
+    });
+
+    const manifest = scanner.scan();
+
+    expect(manifest.components).toHaveLength(1);
+    expect(manifest.components[0]).toMatchObject({ name: 'Button' });
+    expect(info).toHaveBeenCalledWith('rplite:scanner:ignored', {
+      path: 'Ignored.tsx',
+      pattern: '**/Ignored.tsx',
     });
   });
 });

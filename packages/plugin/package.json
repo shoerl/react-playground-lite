@@ -16,6 +16,9 @@
       "types": "./dist/manifest.d.ts"
     }
   },
+  "dependencies": {
+    "picomatch": "^4.0.2"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json"
   },
@@ -25,6 +28,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
+    "@types/picomatch": "^2.3.2",
     "typescript": "^5.3.3",
     "vite": "^5.0.12"
   }

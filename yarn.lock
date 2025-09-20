@@ -627,6 +627,8 @@ __metadata:
   resolution: "@rplite/plugin@workspace:packages/plugin"
   dependencies:
     "@types/node": ^20.11.0
+    "@types/picomatch": ^2.3.2
+    picomatch: ^4.0.2
     typescript: ^5.3.3
     vite: ^5.0.12
   peerDependencies:
@@ -712,6 +714,13 @@ __metadata:
   dependencies:
     undici-types: "npm:~6.21.0"
   checksum: 8e41e75abd1a50dfba18eed3eb5a8c5e6aa4e46ec840aad645056a678c5b2ee1bd28dbb3bfcc41c7b5c73e9997a39210bd9705466c0c568691baeecef8b23df7
+  languageName: node
+  linkType: hard
+
+"@types/picomatch@npm:^2.3.2":
+  version: 2.3.4
+  resolution: "@types/picomatch@npm:2.3.4"
+  checksum: 18966941e46e0eac64b94b4b1b0d840a63576458b26b1abb6f61c38afbb4af031bb12013610b554b923ac4c2199c551411e63401c76884dea8d86ea447a548ef
   languageName: node
   linkType: hard
 

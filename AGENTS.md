@@ -9,6 +9,7 @@ React Playground Lite is a Yarn workspaces monorepo. The Vite scanner plugin liv
 - Install workspace dependencies with `yarn install`; this wires the `workspace:*` links between packages.
 - Workspace tooling targets TypeScript 5.3.x and Vite 5.0.x. React 18.2 is the supported runtime for the UI packages.
 - Respect package peer dependencies: `@rplite/plugin` peers on `vite` and `typescript`, and `@rplite/runtime` peers on `react` and `react-dom`.
+- The plugin exposes `ignore` glob patterns and a `logger` interface for scanner diagnostics; review `packages/plugin/README.md` for usage and update tests in `packages/plugin/test` alongside behavioral changes.
 
 ## Build, Test, and Development Commands
 - `yarn install` — install all workspace dependencies (run after `corepack enable`).
