@@ -7,6 +7,10 @@ const rootDir = fileURLToPath(new URL('.', import.meta.url));
 export default defineConfig({
   test: {
     include: ['packages/**/*.test.ts', 'packages/**/*.test.tsx'],
+    exclude: [
+      // Don't treat fixture sources as test files
+      'packages/**/test/fixtures/**',
+    ],
     environment: 'node',
     globals: false,
   },
