@@ -11,7 +11,7 @@ The runtime is a self-contained React application served by `@rplite/plugin`. It
 The UI is built from a few key components:
 
 - **`Playground`**: The main component that orchestrates the entire UI. It manages the state, including the list of components, the currently selected component, and its prop values.
-- **`Controls`**: This component receives the definition for the selected component and dynamically renders inputs for primitives, string unions, string-valued enums, and one-dimensional arrays (using a comma-separated editor).
+- **`Controls`**: This component receives the definition for the selected component and dynamically renders inputs for primitives, string unions, string-valued enums, one-dimensional arrays (using a comma-separated editor), and discriminated unions of object variants.
 - **`Preview`**: This component is responsible for rendering the selected component in an isolated environment.
 
 ### The `iframe` Architecture

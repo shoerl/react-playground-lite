@@ -5,6 +5,11 @@ import type {
   PrimitivePropDef,
   PropDef,
 } from '@rplite/plugin/manifest';
+import {
+  buildDiscriminatedUnionVariant,
+  describeArrayElement,
+  ensureDiscriminatedUnionValue,
+} from './propValues';
 
 /**
  * Props for the `Controls` component.
@@ -55,6 +60,18 @@ const checkboxContainerStyles: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: '8px',
+};
+
+const variantContainerStyles: React.CSSProperties = {
+  marginTop: '12px',
+  padding: '12px',
+  border: '1px solid #d5d9e0',
+  borderRadius: '6px',
+  backgroundColor: '#f9fafc',
+};
+
+const nestedControlStyles: React.CSSProperties = {
+  marginBottom: '12px',
 };
 
 /**
@@ -179,6 +196,61 @@ function PropControl({ propName, propDef, value, onChange }: PropControlProps) {
         </>
       );
     }
+    case 'discriminated-union': {
+      const normalizedValue = ensureDiscriminatedUnionValue(propDef, value);
+      const currentVariant =
+        typeof normalizedValue[propDef.discriminant] === 'string'
+          ? (normalizedValue[propDef.discriminant] as string)
+          : propDef.options[0]?.value ?? '';
+      const activeOption =
+        propDef.options.find(option => option.value === currentVariant) ??
+        propDef.options[0];
+
+      const handleVariantChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+        onChange(buildDiscriminatedUnionVariant(propDef, event.target.value));
+      };
+
+      const handleNestedChange = (prop: string, nextValue: unknown) => {
+        onChange({
+          ...normalizedValue,
+          [prop]: nextValue,
+        });
+      };
+
+      return (
+        <>
+          <label htmlFor={propName} style={labelStyles}>
+            {propName}
+          </label>
+          <select
+            id={propName}
+            value={currentVariant}
+            onChange={handleVariantChange}
+            style={selectStyles}
+          >
+            {propDef.options.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.value}
+              </option>
+            ))}
+          </select>
+          {activeOption && Object.keys(activeOption.props).length > 0 ? (
+            <div style={variantContainerStyles}>
+              {Object.entries(activeOption.props).map(([nestedName, nestedProp]) => (
+                <div key={nestedName} style={nestedControlStyles}>
+                  <PropControl
+                    propName={nestedName}
+                    propDef={nestedProp}
+                    value={normalizedValue[nestedName]}
+                    onChange={nextValue => handleNestedChange(nestedName, nextValue)}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </>
+      );
+    }
     default:
       return null;
   }
@@ -208,22 +280,6 @@ function parseArrayInput(
       return parts.filter(part => element.options.includes(part));
     default:
       return parts;
-  }
-}
-
-function describeArrayElement(element: PrimitivePropDef | OptionPropDef): string {
-  switch (element.type) {
-    case 'string':
-      return 'Comma-separated text values';
-    case 'number':
-      return 'Comma-separated numbers';
-    case 'boolean':
-      return 'Comma-separated true/false values';
-    case 'union':
-    case 'enum':
-      return `Allowed values: ${element.options.join(', ')}`;
-    default:
-      return 'Comma-separated values';
   }
 }
 

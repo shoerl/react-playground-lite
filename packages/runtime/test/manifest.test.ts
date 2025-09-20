@@ -25,6 +25,25 @@ const baseManifest = {
           type: 'array',
           element: { type: 'string' },
         },
+        config: {
+          type: 'discriminated-union',
+          discriminant: 'variant',
+          options: [
+            {
+              value: 'metric',
+              props: {
+                value: { type: 'number' },
+                trend: { type: 'union', options: ['up', 'down'] },
+              },
+            },
+            {
+              value: 'text',
+              props: {
+                content: { type: 'string' },
+              },
+            },
+          ],
+        },
       },
     },
   ],
@@ -48,6 +67,10 @@ describe('validateManifest', () => {
     expect(manifest.components[0].props.tags).toEqual({
       type: 'array',
       element: { type: 'string' },
+    });
+    expect(manifest.components[0].props.config).toMatchObject({
+      type: 'discriminated-union',
+      discriminant: 'variant',
     });
   });
 
@@ -100,5 +123,52 @@ describe('validateManifest', () => {
         ],
       }),
     ).toThrowError(/element definition/);
+  });
+
+  it('rejects discriminated unions missing variants', () => {
+    expect(() =>
+      validateManifest({
+        version: MANIFEST_VERSION,
+        components: [
+          {
+            name: 'Broken',
+            path: 'Broken.tsx',
+            isDefaultExport: false,
+            props: {
+              config: {
+                type: 'discriminated-union',
+                discriminant: 'mode',
+                options: [],
+              },
+            },
+          },
+        ],
+      }),
+    ).toThrowError(/variant option/);
+  });
+
+  it('rejects discriminated unions with duplicate values', () => {
+    expect(() =>
+      validateManifest({
+        version: MANIFEST_VERSION,
+        components: [
+          {
+            name: 'Broken',
+            path: 'Broken.tsx',
+            isDefaultExport: false,
+            props: {
+              config: {
+                type: 'discriminated-union',
+                discriminant: 'mode',
+                options: [
+                  { value: 'detail', props: {} },
+                  { value: 'detail', props: {} },
+                ],
+              },
+            },
+          },
+        ],
+      }),
+    ).toThrowError(/duplicate discriminant value/);
   });
 });

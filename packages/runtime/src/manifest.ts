@@ -2,6 +2,8 @@ import { MANIFEST_VERSION } from '@rplite/plugin/manifest';
 import type {
   ArrayPropDef,
   ComponentDef,
+  DiscriminatedUnionOption,
+  DiscriminatedUnionPropDef,
   Manifest,
   OptionPropDef,
   PrimitivePropDef,
@@ -70,6 +72,76 @@ function validatePropDef(
   propName: string,
   value: unknown,
 ): PropDef {
+  if (
+    value !== null &&
+    typeof value === 'object' &&
+    (value as { type?: unknown }).type === 'discriminated-union'
+  ) {
+    const candidate = value as Partial<DiscriminatedUnionPropDef> & {
+      options?: unknown;
+    };
+
+    assert(
+      typeof candidate.discriminant === 'string' &&
+        candidate.discriminant.length > 0,
+      `Prop "${propName}" on component "${componentName}" must specify a non-empty discriminant name.`,
+    );
+
+    assert(
+      Array.isArray(candidate.options) && candidate.options.length > 0,
+      `Prop "${propName}" on component "${componentName}" must provide at least one variant option.`,
+    );
+
+    const seenValues = new Set<string>();
+    const normalizedOptions: DiscriminatedUnionOption[] = (candidate.options as unknown[]).map(
+      (optionValue, index) => {
+        assert(
+          optionValue !== null && typeof optionValue === 'object',
+          `Prop "${propName}" option at index ${index} on component "${componentName}" must be an object.`,
+        );
+        const option = optionValue as Partial<DiscriminatedUnionOption> & {
+          props?: Record<string, unknown> | undefined;
+        };
+
+        assert(
+          typeof option.value === 'string' && option.value.length > 0,
+          `Prop "${propName}" option #${index + 1} on component "${componentName}" must define a non-empty discriminant value.`,
+        );
+        assert(
+          !seenValues.has(option.value),
+          `Prop "${propName}" on component "${componentName}" has duplicate discriminant value "${option.value}".`,
+        );
+        seenValues.add(option.value);
+
+        const optionProps = option.props ?? {};
+        assert(
+          optionProps !== null && typeof optionProps === 'object' && !Array.isArray(optionProps),
+          `Prop "${propName}" option "${option.value}" on component "${componentName}" must describe props using an object map.`,
+        );
+
+        const nested: Record<string, PropDef> = {};
+        for (const [nestedName, nestedValue] of Object.entries(optionProps)) {
+          nested[nestedName] = validatePropDef(
+            componentName,
+            `${propName}[${option.value}].${nestedName}`,
+            nestedValue,
+          );
+        }
+
+        return {
+          value: option.value,
+          props: nested,
+        } satisfies DiscriminatedUnionOption;
+      },
+    );
+
+    return {
+      type: 'discriminated-union',
+      discriminant: candidate.discriminant,
+      options: normalizedOptions,
+    } satisfies DiscriminatedUnionPropDef;
+  }
+
   if (
     value !== null &&
     typeof value === 'object' &&

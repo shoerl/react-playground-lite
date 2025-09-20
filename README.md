@@ -18,7 +18,7 @@
 
 - **🚀 Zero-Configuration**: Drop it into your Vite-powered React project and it just works.
 - **🔍 Automatic Component Discovery**: Finds your exported React components with no extra story files.
-- **✨ Prop Control Inference**: Infers controls for primitives, string unions, string-valued enums, and single-level arrays.
+- **✨ Prop Control Inference**: Infers controls for primitives, string unions, string-valued enums, single-level arrays, and discriminated unions.
 - **🛡️ Versioned Manifest**: The plugin/runtime share a schema-versioned manifest that is validated at runtime before rendering.
 - **🧭 Configurable Scanning**: Ignore noisy paths with glob patterns and hook into structured logger callbacks for diagnostics.
 - **⚡ Fast Development**: Integrates seamlessly with Vite's dev server and Hot Module Replacement (HMR).

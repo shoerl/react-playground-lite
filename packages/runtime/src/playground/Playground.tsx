@@ -1,12 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type {
-  Manifest,
-  OptionPropDef,
-  PrimitivePropDef,
-  PropDef,
-} from '@rplite/plugin/manifest';
+import type { Manifest } from '@rplite/plugin/manifest';
 import { Controls } from './Controls';
 import { Preview } from './Preview';
+import { getInitialPropValue } from './propValues';
 
 /**
  * Props for the main Playground component.
@@ -74,44 +70,6 @@ const previewPanelStyles: React.CSSProperties = {
   flexGrow: 1,
   position: 'relative',
 };
-
-const SAMPLE_TAGS = ['Design', 'Analytics', 'Collaboration'];
-
-function getInitialPropValue(propDef: PropDef): unknown {
-  switch (propDef.type) {
-    case 'string':
-      return 'Sample text';
-    case 'number':
-      return 1;
-    case 'boolean':
-      return true;
-    case 'union':
-    case 'enum':
-      return propDef.options[0] ?? '';
-    case 'array':
-      return getArrayInitialValues(propDef.element);
-    default:
-      return undefined;
-  }
-}
-
-function getArrayInitialValues(
-  element: PrimitivePropDef | OptionPropDef,
-): unknown[] {
-  switch (element.type) {
-    case 'string':
-      return [...SAMPLE_TAGS];
-    case 'number':
-      return [25, 75];
-    case 'boolean':
-      return [true];
-    case 'union':
-    case 'enum':
-      return element.options.length > 0 ? [element.options[0]] : [];
-    default:
-      return [];
-  }
-}
 
 /**
  * The main UI of the React Playground.
