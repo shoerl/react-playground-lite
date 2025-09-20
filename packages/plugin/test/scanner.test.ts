@@ -5,6 +5,11 @@ import { MANIFEST_VERSION } from '../src/manifest.ts';
 
 const basicFixtures = path.resolve(__dirname, 'fixtures/basic');
 const ignoreFixtures = path.resolve(__dirname, 'fixtures/ignore');
+const unsupportedFixtures = path.resolve(__dirname, 'fixtures/unsupported');
+const defaultIgnoresFixtures = path.resolve(
+  __dirname,
+  'fixtures/default-ignores',
+);
 
 describe('createScanner', () => {
   it('emits versioned manifest with component props', () => {
@@ -68,5 +73,44 @@ describe('createScanner', () => {
       path: 'Ignored.tsx',
       pattern: '**/Ignored.tsx',
     });
+  });
+
+  it('emits warnings for unsupported props and still includes supported ones', () => {
+    const warn = vi.fn();
+    const scanner = createScanner({
+      srcDir: unsupportedFixtures,
+      projectRoot: unsupportedFixtures,
+      logger: { warn },
+    });
+
+    const manifest = scanner.scan();
+
+    const bad = manifest.components.find(c => c.name === 'BadComponent');
+    if (!bad) throw new Error('Expected BadComponent to be discovered');
+
+    expect(bad.props).toEqual({ label: { type: 'string' } });
+    expect(warn).toHaveBeenCalledWith(
+      'rplite:scanner:unsupported-prop',
+      expect.objectContaining({ component: 'BadComponent', prop: 'theme' }),
+    );
+    expect(warn).toHaveBeenCalledWith(
+      'rplite:scanner:unsupported-prop',
+      expect.objectContaining({ component: 'BadComponent', prop: 'options' }),
+    );
+  });
+
+  it('skips tests, stories, and dist by default', () => {
+    const scanner = createScanner({
+      srcDir: defaultIgnoresFixtures,
+      projectRoot: defaultIgnoresFixtures,
+    });
+
+    const manifest = scanner.scan();
+
+    // Only components from Component.tsx should be included (2 exports).
+    expect(manifest.components.length).toBe(2);
+    for (const c of manifest.components) {
+      expect(c.path).toBe('Component.tsx');
+    }
   });
 });
