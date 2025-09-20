@@ -112,6 +112,21 @@ rplite({
 });
 ```
 
+#### Default ignore patterns
+
+The scanner skips common non-source files and directories by default:
+
+- `**/node_modules/**`
+- `**/dist/**`, `**/build/**`, `**/.vite/**`, `**/.next/**`
+- `**/.storybook/**`, `**/storybook-static/**`, `**/coverage/**`
+- `**/*.test.*`, `**/*.spec.*`, `**/*.stories.*`
+
+You can extend or override this with the `ignore` option. When a user-specified pattern causes a file to be skipped, the scanner emits an `info` log with `rplite:scanner:ignored` and the matched pattern.
+
+#### Unsupported prop warnings
+
+If a component prop cannot be inferred to a supported control type (primitives, string unions, enums, or arrays of those), the scanner emits a `warn` log with `rplite:scanner:unsupported-prop` including the component, prop name, and the TypeScript type string. This helps explain why a given control is missing in the playground without failing the scan.
+
 ## Troubleshooting
 
 ### No components are appearing in the playground.
