@@ -10,6 +10,10 @@ const defaultIgnoresFixtures = path.resolve(
   __dirname,
   'fixtures/default-ignores',
 );
+const discriminatedFixtures = path.resolve(
+  __dirname,
+  'fixtures/discriminated-union',
+);
 
 describe('createScanner', () => {
   it('emits versioned manifest with component props', () => {
@@ -112,5 +116,40 @@ describe('createScanner', () => {
     for (const c of manifest.components) {
       expect(c.path).toBe('Component.tsx');
     }
+  });
+
+  it('discovers discriminated union props with variant metadata', () => {
+    const scanner = createScanner({
+      srcDir: discriminatedFixtures,
+      projectRoot: discriminatedFixtures,
+    });
+
+    const manifest = scanner.scan();
+    const widget = manifest.components.find(component => component.name === 'Widget');
+    if (!widget) throw new Error('Expected Widget component to be discovered.');
+
+    expect(widget.props.title).toEqual({ type: 'string' });
+    expect(widget.props.config).toMatchObject({
+      type: 'discriminated-union',
+      discriminant: 'variant',
+      options: [
+        {
+          value: 'metric',
+          props: {
+            value: { type: 'number' },
+            trend: {
+              type: 'union',
+              options: expect.arrayContaining(['up', 'down']),
+            },
+          },
+        },
+        {
+          value: 'text',
+          props: {
+            content: { type: 'string' },
+          },
+        },
+      ],
+    });
   });
 });

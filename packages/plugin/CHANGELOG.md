@@ -6,3 +6,4 @@ All notable changes to `@rplite/plugin` will be documented in this file.
 
 - Initial changelog scaffold.
 - Use Vite's logger for scanner diagnostics when no custom logger is provided.
+- Infer discriminated-union props and emit variant metadata in the manifest.

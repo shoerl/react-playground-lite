@@ -25,6 +25,26 @@ export type OptionPropDef =
   | { type: 'enum'; name?: string; options: string[] };
 
 /**
+ * Props that model discriminated unions of object variants.
+ */
+export interface DiscriminatedUnionOption {
+  /** Literal value of the discriminant for this variant. */
+  value: string;
+  /** Additional props available when this variant is active. */
+  props: Record<string, PropDef>;
+}
+
+export interface DiscriminatedUnionPropDef {
+  type: 'discriminated-union';
+  /**
+   * Property name that discriminates between variants (e.g. "kind").
+   */
+  discriminant: string;
+  /** Enumerates each variant and its additional props. */
+  options: DiscriminatedUnionOption[];
+}
+
+/**
  * Arrays of supported primitive/option values.
  */
 export interface ArrayPropDef {
@@ -35,7 +55,11 @@ export interface ArrayPropDef {
 /**
  * Defines the types of props that can be inferred and controlled in the playground.
  */
-export type PropDef = PrimitivePropDef | OptionPropDef | ArrayPropDef;
+export type PropDef =
+  | PrimitivePropDef
+  | OptionPropDef
+  | ArrayPropDef
+  | DiscriminatedUnionPropDef;
 
 /**
  * Represents a discovered React component.

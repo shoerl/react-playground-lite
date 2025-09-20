@@ -10,10 +10,10 @@ The plugin integrates into the Vite build process to provide a seamless developm
 
 The heart of the plugin is the component scanner. When Vite starts, the plugin recursively scans the specified `srcDir` for `.ts` and `.tsx` files. For each file, it uses the **TypeScript Compiler API** to parse the source code into an Abstract Syntax Tree (AST).
 
-By traversing the AST, the scanner can:
+-By traversing the AST, the scanner can:
 - Identify all `export` statements.
 - Determine if an export is a React component (currently, it assumes exported functions that take a single `props` object are components).
-- Analyze the `props` type definition to infer prop types (`string`, `number`, `boolean`, unions of string literals, enums, and one-dimensional arrays of those shapes).
+- Analyze the `props` type definition to infer prop types (`string`, `number`, `boolean`, unions of string literals, enums, one-dimensional arrays of those shapes, and discriminated unions of object variants).
 
 This process is what allows `rplite` to be zero-config. It understands your components by reading the code directly, not by requiring you to write special "story" files.
 
@@ -125,7 +125,7 @@ You can extend or override this with the `ignore` option. When a user-specified 
 
 #### Unsupported prop warnings
 
-If a component prop cannot be inferred to a supported control type (primitives, string unions, enums, or arrays of those), the scanner emits a `warn` log with `rplite:scanner:unsupported-prop` including the component, prop name, and the TypeScript type string. This helps explain why a given control is missing in the playground without failing the scan.
+If a component prop cannot be inferred to a supported control type (primitives, string unions, enums, arrays of those, or discriminated unions), the scanner emits a `warn` log with `rplite:scanner:unsupported-prop` including the component, prop name, and the TypeScript type string. This helps explain why a given control is missing in the playground without failing the scan.
 
 ## Troubleshooting
 

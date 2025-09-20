@@ -6,6 +6,7 @@ import {
   MANIFEST_VERSION,
   type ComponentDef,
   type Manifest,
+  type DiscriminatedUnionOption,
   type OptionPropDef,
   type PrimitivePropDef,
   type PropDef,
@@ -59,6 +60,11 @@ export interface Scanner {
 
 type NormalizedPath = string;
 
+interface PropParseContext {
+  componentName?: string;
+  propPath: string;
+}
+
 interface IgnoreMatch {
   matched: boolean;
   pattern?: string;
@@ -83,6 +89,10 @@ function createLogger(custom?: ScannerLogger): Required<ScannerLogger> {
     warn: custom?.warn ?? ((message, context) => console.warn(message, context ?? '')),
     error: custom?.error ?? ((message, context) => console.error(message, context ?? '')),
   };
+}
+
+function getPrimaryDeclaration(symbol: ts.Symbol): ts.Declaration | undefined {
+  return symbol.valueDeclaration ?? symbol.declarations?.[0];
 }
 
 function createIgnoreMatcher(
@@ -258,7 +268,31 @@ export function createScanner(options: ScannerOptions): Scanner {
   };
 
   /**
-   * Parses a TypeScript type and returns a base (non-array) prop definition if supported.
+   * Logs a warning when a prop cannot be inferred to a supported shape.
+   */
+  const warnUnsupportedProp = (
+    checker: ts.TypeChecker,
+    context: PropParseContext,
+    type?: ts.Type,
+  ) => {
+    let typeDescription: string | undefined;
+    if (type) {
+      try {
+        typeDescription = checker.typeToString(type);
+      } catch {
+        typeDescription = undefined;
+      }
+    }
+
+    logger.warn('rplite:scanner:unsupported-prop', {
+      component: context.componentName ?? '(anonymous)',
+      prop: context.propPath,
+      ...(typeDescription ? { type: typeDescription } : {}),
+    });
+  };
+
+  /**
+   * Parses primitives, enums, and string literal unions.
    */
   const parseBasePropType = (
     type: ts.Type,
@@ -292,14 +326,146 @@ export function createScanner(options: ScannerOptions): Scanner {
     return null;
   };
 
+  const parseDiscriminatedUnion = (
+    type: ts.Type,
+    checker: ts.TypeChecker,
+    context: PropParseContext,
+  ):
+    | { discriminant: string; options: DiscriminatedUnionOption[] }
+    | null => {
+    const candidateUnion = type.getNonNullableType();
+    if (!candidateUnion.isUnion() || candidateUnion.types.length < 2) {
+      return null;
+    }
+
+    interface VariantInfo {
+      type: ts.Type;
+      properties: ts.Symbol[];
+      literalProps: Array<{ name: string; value: string }>;
+    }
+
+    const variants: VariantInfo[] = [];
+
+    for (const unionMember of candidateUnion.types) {
+      const memberType = checker.getApparentType(unionMember.getNonNullableType());
+      const properties = checker.getPropertiesOfType(memberType);
+      if (properties.length === 0) {
+        return null;
+      }
+
+      const literalProps: Array<{ name: string; value: string }> = [];
+
+      for (const propSymbol of properties) {
+        const declaration = getPrimaryDeclaration(propSymbol);
+        if (!declaration) continue;
+        const propType = checker.getTypeOfSymbolAtLocation(propSymbol, declaration);
+        if (propType && propType.isStringLiteral()) {
+          literalProps.push({ name: propSymbol.getName(), value: propType.value });
+        }
+      }
+
+      if (literalProps.length === 0) {
+        return null;
+      }
+
+      variants.push({ type: memberType, properties, literalProps });
+    }
+
+    let candidateNames = new Set(variants[0].literalProps.map(prop => prop.name));
+    for (const variant of variants.slice(1)) {
+      const names = new Set(variant.literalProps.map(prop => prop.name));
+      candidateNames = new Set(
+        [...candidateNames].filter(name => names.has(name)),
+      );
+      if (candidateNames.size === 0) {
+        return null;
+      }
+    }
+
+    let discriminant: string | undefined;
+    for (const name of candidateNames) {
+      const seen = new Set<string>();
+      let valid = true;
+      for (const variant of variants) {
+        const match = variant.literalProps.find(prop => prop.name === name);
+        if (!match) {
+          valid = false;
+          break;
+        }
+        if (seen.has(match.value)) {
+          valid = false;
+          break;
+        }
+        seen.add(match.value);
+      }
+      if (valid) {
+        discriminant = name;
+        break;
+      }
+    }
+
+    if (!discriminant) {
+      return null;
+    }
+
+    const options: DiscriminatedUnionOption[] = [];
+
+    for (const variant of variants) {
+      const discriminantProp = variant.literalProps.find(
+        prop => prop.name === discriminant,
+      );
+      if (!discriminantProp) {
+        return null;
+      }
+
+      const props: Record<string, PropDef> = {};
+      for (const propSymbol of variant.properties) {
+        const propName = propSymbol.getName();
+        if (propName === discriminant) {
+          continue;
+        }
+
+        const declaration = getPrimaryDeclaration(propSymbol);
+        if (!declaration) continue;
+
+        const propType = checker.getTypeOfSymbolAtLocation(propSymbol, declaration);
+        if (!propType) continue;
+
+        const nestedContext: PropParseContext = {
+          componentName: context.componentName,
+          propPath: `${context.propPath}[${discriminantProp.value}].${propName}`,
+        };
+
+        const nestedDef = parsePropType(propType, checker, nestedContext, {
+          warnOnUnsupported: true,
+        });
+
+        if (nestedDef) {
+          props[propName] = nestedDef;
+        }
+      }
+
+      options.push({ value: discriminantProp.value, props });
+    }
+
+    if (options.length < 2) {
+      return null;
+    }
+
+    options.sort((a, b) => a.value.localeCompare(b.value));
+
+    return { discriminant, options };
+  };
+
   /**
    * Parses a TypeScript type and returns a `PropDef` if it's a supported type.
-   * @param type - The TypeScript type to parse.
-   * @param checker - The TypeScript type checker.
-   * @returns A `PropDef` or `null` if the type is not supported.
-   * @internal
    */
-  const parsePropType = (type: ts.Type, checker: ts.TypeChecker): PropDef | null => {
+  const parsePropType = (
+    type: ts.Type,
+    checker: ts.TypeChecker,
+    context: PropParseContext,
+    options: { warnOnUnsupported: boolean } = { warnOnUnsupported: true },
+  ): PropDef | null => {
     const base = parseBasePropType(type, checker);
     if (base) return base;
 
@@ -315,7 +481,29 @@ export function createScanner(options: ScannerOptions): Scanner {
         if (elementDef) {
           return { type: 'array', element: elementDef };
         }
+        if (options.warnOnUnsupported) {
+          warnUnsupportedProp(checker, context, elementType);
+        }
+        return null;
       }
+    }
+
+    const discriminatedUnion = parseDiscriminatedUnion(
+      type,
+      checker,
+      context,
+    );
+
+    if (discriminatedUnion) {
+      return {
+        type: 'discriminated-union',
+        discriminant: discriminatedUnion.discriminant,
+        options: discriminatedUnion.options,
+      };
+    }
+
+    if (options.warnOnUnsupported) {
+      warnUnsupportedProp(checker, context, type);
     }
 
     return null;
@@ -348,30 +536,21 @@ export function createScanner(options: ScannerOptions): Scanner {
     const props: Record<string, PropDef> = {};
     for (const propSymbol of properties) {
       const propName = propSymbol.getName();
-      // `valueDeclaration` is the AST node where the symbol is declared.
-      const propType = checker.getTypeOfSymbolAtLocation(propSymbol, propSymbol.valueDeclaration!);
-      const propDef = parsePropType(propType, checker);
+      const declaration = getPrimaryDeclaration(propSymbol);
+      if (!declaration) continue;
+
+      const propType = checker.getTypeOfSymbolAtLocation(propSymbol, declaration);
+      const propDef = parsePropType(
+        propType,
+        checker,
+        {
+          componentName: componentNameForLogs,
+          propPath: propName,
+        },
+        { warnOnUnsupported: true },
+      );
       if (propDef) {
         props[propName] = propDef;
-      } else {
-        // Warn when a prop cannot be inferred to a supported type.
-        // This helps users understand why a control might be missing.
-        try {
-          const typeString = checker.typeToString(propType);
-          logger.warn(
-            'rplite:scanner:unsupported-prop',
-            {
-              component: componentNameForLogs ?? '(anonymous)',
-              prop: propName,
-              type: typeString,
-            } as unknown as Record<string, unknown>,
-          );
-        } catch {
-          logger.warn('rplite:scanner:unsupported-prop', {
-            component: componentNameForLogs ?? '(anonymous)',
-            prop: propName,
-          });
-        }
       }
     }
     return Object.keys(props).length > 0 ? props : null;
