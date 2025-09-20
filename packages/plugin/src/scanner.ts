@@ -6,9 +6,9 @@ import {
   type ComponentDef,
   type Manifest,
   type PropDef,
-} from './manifest.js';
+} from './manifest';
 
-export type { ComponentDef, Manifest, PropDef } from './manifest.js';
+export type { ComponentDef, Manifest, PropDef } from './manifest';
 
 /**
  * Options for the component scanner.

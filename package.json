@@ -11,10 +11,13 @@
     "preview": "yarn workspace example preview",
     "build": "yarn workspace @rplite/plugin build && yarn workspace @rplite/runtime build",
     "typecheck": "tsc -b packages/* example",
-    "lint": "echo 'Linting not set up yet. Stub script.'"
+    "lint": "echo 'Linting not set up yet. Stub script.'",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^1.4.0"
   },
   "packageManager": "yarn@3.2.0"
 }

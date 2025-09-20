@@ -16,6 +16,8 @@ React Playground Lite is a Yarn workspaces monorepo. The Vite scanner plugin liv
 - `yarn preview` — serve the production build generated for the example workspace.
 - `yarn build` — compile both `@rplite/plugin` and `@rplite/runtime` via `tsc -p tsconfig.json`.
 - `yarn typecheck` — run project references type-checking across `packages/*` and `example`.
+- `yarn test` — execute the Vitest suite covering the plugin scanner and runtime manifest contracts.
+- `yarn test:watch` — run Vitest in watch mode for rapid feedback while iterating.
 - `yarn lint` — currently a stub; update the script alongside any linting setup changes.
 
 ## Agent Workflow Expectations
